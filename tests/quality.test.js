@@ -56,7 +56,9 @@ test('oscillation guard: up then down within 30 s locks the ceiling, so no furth
 
 test('stalls and manual mode are ignored by the measurement', () => {
   const qc = createQualityController({ start: 'high', now: 0 });
-  assert.equal(run(qc, 400, 30, 0).out.length, 0, 'intervals > 250 ms are stalls, not rendering cost');
+  assert.equal(run(qc, 1500, 60, 0).out.length, 0, 'intervals > 1 s are stalls, not rendering cost');
+  const slowDevice = createQualityController({ start: 'high', now: 0 });
+  assert.deepEqual(run(slowDevice, 400, 30, 0).out.map(o => o[1]), ['medium', 'low'], 'a device at 2.5 fps is slow, not stalled');
   const m = createQualityController({ mode: 'medium', now: 0 });
   assert.equal(m.tier, 'medium');
   assert.equal(run(m, 100, 30, 0).out.length, 0);

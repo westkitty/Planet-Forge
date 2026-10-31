@@ -34,7 +34,7 @@ All six packages are presentation-layer only. World model stays `glacial-0.8`; t
 - Frame intervals are grouped into 2 s windows and the median is compared with a 22.2 ms budget (45 fps).
 - Two windows above 1.4× budget step the tier down. Five windows below 0.55× budget step it up.
 - Each change starts a 3 s quiet period.
-- Intervals over 250 ms are ignored as stalls.
+- Intervals over 1 s are ignored as stalls (hidden tab, debugger). An earlier 250 ms cut-off made Auto blind on devices slower than 4 fps; the PR CI runner exposed this.
 - Oscillation guard: a step down within 30 s of a step up locks the ceiling at the lower tier.
 
 **Device ceiling.** Low if ≤ 2 hardware threads, `deviceMemory` ≤ 2 or max texture size < 4096. Medium if the pointer is coarse or `deviceMemory` ≤ 4. Otherwise high.

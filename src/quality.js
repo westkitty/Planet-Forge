@@ -3,7 +3,7 @@
 //
 // Measured adaptation: frame intervals are grouped into 2 s windows and each window's median is compared with a frame
 // budget. Two consecutive slow windows step the tier down; five consecutive fast windows step it up. After any change
-// the next 3 s are ignored (rebuilding resources causes a spike). If a step up is followed by a step down within 30 s
+// the next 3 s are ignored (rebuilding resources causes a spike); intervals over 1 s are not rendering cost. If a step up is followed by a step down within 30 s
 // the tier it fell back to becomes the ceiling for the rest of the session, so the tier cannot oscillate.
 // Idea source: westkitty/Event-Horizon-Forge src/app/AdaptiveResolution.ts (measured, hysteretic resolution scaling).
 
@@ -47,7 +47,9 @@ export function createQualityController({ mode = 'auto', ceiling = 'high', start
     /** Feed one frame interval; returns the new tier name when auto mode decides to change, else null. */
     sample(dtMs, at) {
       if (mode !== 'auto' || at < quietUntil) { windowStart = at; return null; }
-      if (!(dtMs > 0) || dtMs > 250) return null; // tab hidden, debugger or a one-off stall: not a rendering cost
+      // Only intervals over 1 s are discarded (hidden tab, debugger, GC pause). A device that renders every frame in
+      // 300 ms is slow, not stalled; isolated spikes are absorbed by the window median.
+      if (!(dtMs > 0) || dtMs > 1000) return null;
       if (!samples.length) windowStart = at; // a window starts at its first counted frame
       samples.push(dtMs);
       if (at - windowStart < windowMs || samples.length < 8) return null;
