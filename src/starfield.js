@@ -348,8 +348,26 @@ export function createStarfield(scene, renderer, { seed = SKY_SEED, quality = au
     if (failed) { fallback = true; build(tier); }
     return !failed;
   }
+  // PF-04: constellation lines (catalogue ids → fixed sky directions; identical on every tier).
+  let lines = null;
+  function setConstellations(list) {
+    if (lines) { group.remove(lines); lines.geometry.dispose(); lines.material.dispose(); lines = null; }
+    const pts = [];
+    for (const c of list) for (const [a, b] of c.edges) for (const i of [a, b]) pts.push(catalogue.direction[3 * i] * radius * .97, catalogue.direction[3 * i + 1] * radius * .97, catalogue.direction[3 * i + 2] * radius * .97);
+    if (!pts.length) return;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf3d9a4, transparent: true, opacity: .75, depthWrite: false }));
+    lines.renderOrder = -8; lines.frustumCulled = false; group.add(lines);
+  }
+  /** Nearest star brighter than maxMag within maxDeg of a world-space view direction; −1 if none. */
+  function pickStar(d, maxDeg = 1.2, maxMag = 4.5) {
+    const l = Math.hypot(d.x, d.y, d.z), cosMax = Math.cos(maxDeg * Math.PI / 180); let best = -1, bd = cosMax;
+    for (let i = 0; i < catalogue.count; i++) { if (catalogue.magnitude[i] >= maxMag) continue; const v = (catalogue.direction[3 * i] * d.x + catalogue.direction[3 * i + 1] * d.y + catalogue.direction[3 * i + 2] * d.z) / l; if (v > bd) { bd = v; best = i; } }
+    return best;
+  }
   build(quality);
   return {
+    setConstellations, pickStar,
     group,
     catalogue,
     /** Keep the sky centred on the viewer: stars are at infinity, so they show no parallax when the camera zooms. */
@@ -361,6 +379,6 @@ export function createStarfield(scene, renderer, { seed = SKY_SEED, quality = au
     tick(dt) { time.value = (time.value + dt) % 3600; },
     checkShaders,
     info: () => ({ seed, cubeFace: cube ? cube.width : 0, signature: catalogue.signature, catalogue: catalogue.count, drawn: shown.length, quality: tier, fallback, galaxies: catalogue.galaxies.length, limitingMagnitude: +catalogue.magnitude[shown.reduce((a, i) => catalogue.magnitude[i] > catalogue.magnitude[a] ? i : a, shown[0])].toFixed(2) }),
-    dispose() { teardown(); scene.remove(group); canvas?.removeEventListener?.('webglcontextrestored', rebake); }
+    dispose() { if (lines) { lines.geometry.dispose(); lines.material.dispose(); } teardown(); scene.remove(group); canvas?.removeEventListener?.('webglcontextrestored', rebake); }
   };
 }

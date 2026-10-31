@@ -312,6 +312,44 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     for (const g of [10, 20, 30]) { await page.click('#life-step10'); await waitText(page, '.drawer-body', new RegExp('Generation ' + g + ';')); }
     const lf = await page.locator('.drawer-body').innerText();
     check(p + 'Life Finds a Way: generations advance under pressure with a field guide and tree of descent', /Generation 30; \d+ living species/.test(lf) && /Tree of descent/i.test(lf), lf.split('Life Finds a Way')[1]?.slice(0, 200));
+    // ---- Milestone 5 (PF-04/24/25/26) ----
+    await page.selectOption('#play-mode', 'star'); await page.selectOption('#star-type', 'M0V'); await page.click('#star-apply'); await waitText(page, '.drawer-body', /Not coupled/);
+    const st = await page.locator('.drawer-body').innerText();
+    await page.selectOption('#star-type', 'G2V'); await page.locator('#star-distance').fill('1'); await page.click('#star-apply'); await waitText(page, '.drawer-body', /match the 1,361/);
+    check(p + 'Stellar Foundry: flux, habitable zone and an explicit not-coupled statement; Sun at 1 AU matches the model', /W\/m²/.test(st) && /Kopparapu/.test(st) && /Not coupled/.test(st) && /match the 1,361/.test(await page.locator('.drawer-body').innerText()), st.split('Constellation Cartography')[1]?.slice(0, 200));
+    await page.selectOption('#play-mode', 'eclipse'); await waitText(page, '.drawer-body', /Eclipses in the next three years/);
+    const solar = page.locator('[data-eclipse]');
+    let ecl = 'no central eclipse';
+    if (await solar.count()) { await solar.first().click(); await page.waitForTimeout(300); await page.click('#eclipse-observe'); await page.waitForTimeout(150); ecl = await page.locator('.drawer-status').innerText(); }
+    const eclText = await page.locator('.drawer-body').innerText();
+    check(p + 'Eclipse Hunter: reproducible timetable, jump to a shadow and observe from inside it', /Eclipses in the next three years \(\d+\)/i.test(eclText) && (/observed and recorded|Only total or annular/.test(ecl) || !(await solar.count())), ecl);
+    await page.selectOption('#play-mode', 'orbits'); await page.click('#sat-launch'); await page.waitForTimeout(300);
+    await page.locator('#sat-alt').fill('120'); await page.click('#sat-launch'); await page.waitForTimeout(100);
+    const reject = await page.locator('.drawer-status').innerText();
+    await page.click('#sat-coverage'); await waitText(page, '.drawer-body', /Seen in 24 h/, 60000);
+    const ob = await page.locator('.drawer-body').innerText(), satV = (await V()).satellites;
+    check(p + 'Orbit Architect: launch, reject an unsafe orbit, 24 h coverage with missions and satellites on the globe', /decays/.test(reject) && /Seen in 24 h: [\d.]+ % of the surface/.test(ob) && satV.satellites === 1 && satV.paths, reject + ' ' + JSON.stringify(satV));
+    await page.selectOption('#play-mode', 'sky'); await page.waitForTimeout(200);
+    const found = await page.evaluate(() => { const out = []; for (let i = 0; i < 14000 && out.length < 3; i++) { const s = window.__planetForgeView.starScreen(i); if (s.onScreen && s.mag < 4.5 && (s.x < 330 || s.x > 960) && s.y > 30 && s.y < 640) out.push({ i, ...s }); } return out; });
+    for (const s of found) { await page.mouse.click(s.x, s.y); await page.waitForTimeout(120); }
+    await page.fill('#const-name', 'The Weasel'); await page.click('#const-save'); await page.waitForTimeout(200);
+    const cs = await page.locator('.drawer-body').innerText(), selAfter = (await V()).selected;
+    check(p + 'Constellation Cartography: picking sky stars (not planet cells) draws and saves a named pattern', found.length === 3 && /The Weasel: 3 stars, 2 lines/.test(cs) && (await V()).store.events > 0, `stars=${found.length} ${cs.split('Constellation Cartography')[1]?.slice(0, 160)} sel=${selAfter}`);
+    // ---- Milestone 6 (PF-16/19/32) ----
+    await page.selectOption('#play-mode', 'rover'); await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('#rover-start'); await page.waitForTimeout(500);
+    const roverShot = await canvasStats(page, await canvas.screenshot()), r0 = (await V()).local;
+    for (let k = 0; k < 4; k++) { await page.click('#drive-up'); await page.waitForTimeout(80); }
+    const r1 = (await V()).local; await page.click('#return-orbit'); await page.waitForTimeout(400);
+    check(p + 'First Footfall: descent renders local terrain, driving costs energy, return to orbit restores the globe', r0 && r0.kind === 'surface' && roverShot.colours > 40 && r1.y < r0.y && r1.energy < r0.energy && (await V()).local === null, JSON.stringify({ r0: r0 && [r0.x, r0.y, r0.energy], r1: r1 && [r1.x, r1.y, r1.energy], colours: roverShot.colours }));
+    const seaCell = (await page.evaluate(() => window.__planetForgeView.eligibleSites('seafloorAge', 'B', 1)))[0];
+    await page.selectOption('#play-mode', 'sub'); await page.evaluate(c => window.__planetForgeView.select(c), seaCell); await page.click('#sub-start'); await page.waitForTimeout(500);
+    for (let k = 0; k < 3; k++) { await page.click('#sub-dive'); await page.waitForTimeout(80); }
+    const sb = await page.locator('.drawer-body').innerText(), sub = (await V()).local; await page.click('#return-orbit'); await page.waitForTimeout(300);
+    check(p + 'Abyssal Frontier: dive over real bathymetry with ρgh pressure, then return', sub && sub.kind === 'ocean' && sub.depth > 500 && /pressure [\d.]+ bar/.test(sb) && (await V()).local === null, sb.split('God of Consequences')[1]?.slice(0, 160));
+    await page.selectOption('#play-mode', 'lab'); await page.locator('#lab-tilt').fill('40'); await page.click('#lab-run'); await waitText(page, '.drawer-body', /Mild, wet land/, 60000);
+    const lab = await page.locator('.drawer-body').innerText(), labDiff = (await V()).diff;
+    await page.click('#lab-revert'); await page.waitForTimeout(300);
+    check(p + 'God of Consequences: tilt experiment compared with an untouched baseline, change map shown, revert restores', /Mean temperature/.test(lab) && /tilt 40°/.test(lab) && labDiff && !(await V()).diff && (await V()).seed === 'ATLAS-001', lab.split('God of Consequences')[1]?.slice(0, 200));
     if (thSeed !== 'ATLAS-001') { await page.fill('#seed', 'ATLAS-001'); await page.press('#seed', 'Enter'); await page.waitForTimeout(1200); }
     await page.selectOption('#era', 'today'); await page.waitForTimeout(300);
     await page.click('#observatory'); await page.waitForTimeout(100); if (await page.locator('#drawer').isHidden()) await page.click('#observatory');

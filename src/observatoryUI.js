@@ -23,8 +23,9 @@ export function createObservatoryUI(app) {
   const goButton = (i, text = 'Go') => h('button', { class: 'mini', on: { click: () => { app.select(i); app.flyTo(i); } } }, text);
 
   function open(tab = active) { drawer.hidden = false; document.querySelector('#observatory').setAttribute('aria-expanded', 'true'); show(tab); }
-  function close() { drawer.hidden = true; document.querySelector('#observatory').setAttribute('aria-expanded', 'false'); app.overlays.clearHighlights(); document.querySelector('#observatory').focus(); }
+  function close() { play.leave(); drawer.hidden = true; document.querySelector('#observatory').setAttribute('aria-expanded', 'false'); app.overlays.clearHighlights(); document.querySelector('#observatory').focus(); }
   function show(tab) {
+    if (tab !== 'play') play.leave();
     active = tab;
     for (const t of tabs) { const on = t.dataset.tab === tab; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; }
     body.replaceChildren(render[tab]());
