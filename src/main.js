@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { createPlanet, geodesicMesh, cellInfo, planetSummary, BIOMES, KOPPEN } from './planet.js';
 import { KOPPEN_COLORS } from './climate.js';
 import { RIVER_MIN_M3S, LAKE } from './hydrology.js';
+import { GLACIAL_CELL } from './glaciation.js';
 import './style.css';
-const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt');
-let planet, mesh, winds, zonalRain, disposed = false;
+const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt'), eraSelect = document.querySelector('#era');
+let planet, mesh, winds, zonalRain, disposed = false, glacialMs = null;
 const FREQUENCY = 100; // 10f^2+2 = 100,002 cells
 const baseMesh = geodesicMesh(FREQUENCY);
 const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(45, 1, .1, 100); camera.position.set(0, 0, 3.4);
@@ -14,8 +15,22 @@ const BIOME_COLORS = { Ocean: '#175d83', Ice: '#e4f0f6', Tundra: '#a7b0a6', 'Bor
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
 const BOUNDARY_COLORS = [null, new THREE.Color('#ff5a3c'), new THREE.Color('#3cc8ff'), new THREE.Color('#ffd23c')];
+// Glacial maximum (glacial-0.8): ice sheets shaded by thickness, exposed shelves as land, land bridges highlighted.
+const ICE_THIN = new THREE.Color('#cfe3ee'), ICE_THICK = new THREE.Color('#f7fbff'), SHELF = new THREE.Color('#b9a77a'), BRIDGE = new THREE.Color('#ff9f3c'), RETREAT = new THREE.Color('#7fb6c9');
+function glacialColor(i, layer, c, g) {
+  const s = g.cell[i];
+  if (s === GLACIAL_CELL.ice) return c.copy(ICE_THIN).lerp(ICE_THICK, Math.min(1, g.thickness[i] / 3500));
+  if (s === GLACIAL_CELL.bridge) return c.copy(layer === 'glacial' ? BRIDGE : SHELF);
+  if (s === GLACIAL_CELL.shelf) return c.copy(SHELF);
+  if (layer !== 'glacial') return null;
+  if (s === GLACIAL_CELL.presentIce) return c.copy(RETREAT);
+  const el = planet.elevation[i];
+  return el < 0 ? c.setRGB(.05, .1 + Math.max(0, el + 6000) / 60000, .22 + Math.max(0, el + 6000) / 40000) : c.setHSL(.25, .12, Math.min(.6, .3 + el / 12000));
+}
+const glacialView = () => eraSelect.value === 'glacial' || layerSelect.value === 'glacial';
 function color(i, layer, c) {
   const el = planet.elevation[i];
+  if (glacialView() && glacialColor(i, layer, c, planet.glaciation)) return c;
   if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .55, planet.continental[i] ? .55 : .36); }
   if (layer === 'boundaries') { const b = planet.boundary[i]; if (b) return c.copy(BOUNDARY_COLORS[b]); return planet.continental[i] ? c.setRGB(.42, .40, .36) : c.setRGB(.10, .16, .24); }
   if (layer === 'age') { if (planet.continental[i]) return c.setRGB(.35, .33, .30); return c.setHSL(THREE.MathUtils.clamp(planet.seafloorAge[i] / 200, 0, 1) * .75, .8, .5); }
@@ -45,6 +60,7 @@ function makeGlobe() {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(Float32Array.from(baseMesh.positions), 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Float32Array.from(baseMesh.positions), 3));
   geometry.setIndex(new THREE.BufferAttribute(baseMesh.triangles, 1));
+  if (glacialView()) { const t0 = performance.now(), fresh = !planet.glaciationComputed; planet.glaciation; if (fresh) { glacialMs = Math.round(performance.now() - t0); printWorld(); } }
   const colors = new Float32Array(planet.cellCount * 3), c = new THREE.Color(), layer = layerSelect.value;
   for (let i = 0; i < planet.cellCount; i++) { color(i, layer, c); colors[3 * i] = c.r; colors[3 * i + 1] = c.g; colors[3 * i + 2] = c.b; }
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
@@ -83,17 +99,25 @@ function printWorld() {
   const s = planetSummary(planet);
   document.querySelector('#stats').innerHTML = '<span>Land: ' + Math.round(s.landFraction * 100) + '%</span><span>Plates: ' + s.plates + '</span><span>Seed: ' + esc(planet.seed) + '</span><span>Cells sampled: ' + s.cells + '</span><span>Highest: ' + s.maxElevation + ' m</span><span>Deepest: ' + s.minElevation + ' m</span><span>Axial tilt: ' + s.tilt + '°</span><span>Mean rain: ' + s.meanPrecipitation + ' mm/yr</span><span>Rivers to sea: ' + Math.round(s.hydrology.toSeaM3s / 1000) + 'k m³/s</span><span>Endorheic land: ' + Math.round(s.hydrology.endorheicLandFraction * 100) + '%</span>';
   document.querySelector('#rivers').textContent = planet.hydro.rivers.slice(0, 5).map(r => r.name + ' · ' + r.dischargeM3s.toLocaleString('en-US') + ' m³/s · ' + r.lengthKm.toLocaleString('en-US') + ' km' + (r.endorheic ? ' · closed basin' : '')).join(' | ') || 'No rivers on this world.';
+  const g = planet.glaciationComputed ? planet.glaciation : null;
+  if (g) {
+    const gs = g.stats;
+    document.querySelector('#stats').innerHTML += '<span>Glacial sea fall: ' + gs.seaLevelFallM + ' m</span><span>Glacial ice: ' + (gs.glacialIceFraction * 100).toFixed(1) + '%</span><span>Glacial cooling: ' + gs.globalCoolingK + ' K</span>';
+    document.querySelector('#iceage').textContent = planet.prehistory + ' Ice sheets: ' + (g.iceSheets.map(x => x.name + ' · ' + Math.round(x.areaKm2 / 1e6 * 10) / 10 + ' M km² · up to ' + x.maxThicknessM.toLocaleString('en-US') + ' m').join(' | ') || 'none') + '. Land bridges: ' + (g.bridges.map(b => b.name + ' · ' + Math.round(b.areaKm2 / 1000).toLocaleString('en-US') + 'k km² · ' + b.lat + '°, ' + b.lon + '°').join(' | ') || 'none') + '.';
+    if (window.__planetForge) window.__planetForge.glacialMs = glacialMs;
+  } else document.querySelector('#iceage').textContent = 'Choose the Last glacial maximum era or the Ice age layer to compute this world\'s glacial state.';
   document.querySelector('#settlements').textContent = planet.settlements.map(t => t.name + ' · ' + t.biome).join(' | ') || 'No viable settlements in this seed.';
   document.querySelector('#chronicle').textContent = planet.timeline.map(e => e.year + ' — ' + e.event).join(' · ') || 'No recorded settlements.';
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
-function generate() { const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); computeZonalRain(); makeGlobe(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0) }; }
+function generate() { const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); makeGlobe(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs }; }
 generate();
-document.querySelector('#generate').addEventListener('click', generate); seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); }); layerSelect.addEventListener('change', makeGlobe); seasonSelect.addEventListener('change', makeGlobe); tiltSelect.addEventListener('change', generate);
+document.querySelector('#generate').addEventListener('click', generate); seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); }); layerSelect.addEventListener('change', makeGlobe); seasonSelect.addEventListener('change', makeGlobe); tiltSelect.addEventListener('change', generate); eraSelect.addEventListener('change', makeGlobe);
 document.querySelector('#random').addEventListener('click', () => { seedInput.value = 'WORLD-' + Math.random().toString(36).slice(2, 9).toUpperCase(); generate(); });
 document.querySelector('#export').addEventListener('click', () => {
+  const g = planet.glaciation; printWorld(); // the atlas always carries the glacial state (computed on demand)
   const n = planet.cellCount, sampled = []; for (let i = 0; i < n; i += 10) sampled.push(cellInfo(planet, i));
-  const data = JSON.stringify({ seed: planet.seed, version: planet.version, cellCount: n, geodesicFrequency: planet.frequency, axialTiltDeg: planet.tilt, summary: planetSummary(planet), plates: planet.plates.map(({ density, ...p }) => p), rivers: planet.hydro.rivers.map(({ path, ...r }) => r), lakes: planet.hydro.lakes.filter(l => l.area >= 3).map(({ cells, first, ...l }) => l), settlements: planet.settlements, timeline: planet.timeline, sampledCells: sampled, columns: { plate: Array.from(planet.plate), elevation: Array.from(planet.elevation), boundary: Array.from(planet.boundary), biome: Array.from(planet.biome), koppen: Array.from(planet.koppen), temperature: Array.from(planet.temperature), rainfallMm: Array.from(planet.rainfall), runoffMm: Array.from(planet.hydro.runoff), dischargeM3s: Array.from(planet.hydro.discharge, Math.round), basin: Array.from(planet.hydro.basin), lake: Array.from(planet.hydro.lake), receiver: Array.from(planet.hydro.receiver) }, koppenCodes: KOPPEN, biomeNames: BIOMES });
+  const data = JSON.stringify({ seed: planet.seed, version: planet.version, cellCount: n, geodesicFrequency: planet.frequency, axialTiltDeg: planet.tilt, summary: planetSummary(planet), plates: planet.plates.map(({ density, ...p }) => p), rivers: planet.hydro.rivers.map(({ path, ...r }) => r), lakes: planet.hydro.lakes.filter(l => l.area >= 3).map(({ cells, first, ...l }) => l), settlements: planet.settlements, timeline: planet.timeline, sampledCells: sampled, columns: { plate: Array.from(planet.plate), elevation: Array.from(planet.elevation), boundary: Array.from(planet.boundary), biome: Array.from(planet.biome), koppen: Array.from(planet.koppen), temperature: Array.from(planet.temperature), rainfallMm: Array.from(planet.rainfall), runoffMm: Array.from(planet.hydro.runoff), dischargeM3s: Array.from(planet.hydro.discharge, Math.round), basin: Array.from(planet.hydro.basin), lake: Array.from(planet.hydro.lake), receiver: Array.from(planet.hydro.receiver), glacialState: Array.from(g.cell), glacialIceM: Array.from(g.thickness) }, glacial: { prehistory: planet.prehistory, seaLevelM: Math.round(g.seaLevel * 10) / 10, stats: { ...g.stats, iterations: undefined }, iceSheets: g.iceSheets, landBridges: g.bridges, stateCodes: ['unglaciated', 'glacial ice sheet', 'exposed glacial shelf', 'glacial land bridge', 'present ice, retreated at glacial'] }, koppenCodes: KOPPEN, biomeNames: BIOMES });
   const url = URL.createObjectURL(new Blob([data], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'planet-' + planet.seed.replace(/[^a-z0-9-]/gi, '_') + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 let drag = false, lastX = 0, lastY = 0, px = 0, py = 0; const canvas = renderer.domElement;
@@ -106,7 +130,7 @@ function inspectAt(clientX, clientY) {
   const local = mesh.worldToLocal(hit.point.clone()); const P = baseMesh.positions; let best = hit.face.a, bd = Infinity;
   for (const k of [hit.face.a, hit.face.b, hit.face.c]) { const d = (P[3 * k] - local.x) ** 2 + (P[3 * k + 1] - local.y) ** 2 + (P[3 * k + 2] - local.z) ** 2; if (d < bd) { bd = d; best = k; } }
   const c = cellInfo(planet, best), p = planet.plates[c.plate];
-  document.querySelector('#inspect').textContent = c.lat + '° lat, ' + c.lon + '° lon · ' + c.biome + ' · Köppen ' + c.koppen + ' · ' + c.elevation + ' m · ' + c.temperature + ' °C (Jan ' + c.temperatureJan + ', Jul ' + c.temperatureJul + ') · ' + c.rainfall + ' mm/yr · plate ' + c.plate + ' (' + c.crust + ', ' + p.speedCmYr + ' cm/yr)' + (c.boundary !== 'none' ? ' · ' + c.boundary + ' boundary' : '') + (c.seafloorAgeMyr !== undefined ? ' · seafloor ~' + c.seafloorAgeMyr + ' Myr' : '') + (c.dischargeM3s !== undefined ? ' · ' + (c.lake ? c.lake + ' · ' : '') + 'flow ' + c.dischargeM3s.toLocaleString('en-US') + ' m³/s · runoff ' + c.runoffMm + ' mm/yr · basin ' + c.basin : '');
+  document.querySelector('#inspect').textContent = c.lat + '° lat, ' + c.lon + '° lon · ' + c.biome + ' · Köppen ' + c.koppen + ' · ' + c.elevation + ' m · ' + c.temperature + ' °C (Jan ' + c.temperatureJan + ', Jul ' + c.temperatureJul + ') · ' + c.rainfall + ' mm/yr · plate ' + c.plate + ' (' + c.crust + ', ' + p.speedCmYr + ' cm/yr)' + (c.boundary !== 'none' ? ' · ' + c.boundary + ' boundary' : '') + (c.seafloorAgeMyr !== undefined ? ' · seafloor ~' + c.seafloorAgeMyr + ' Myr' : '') + (c.dischargeM3s !== undefined ? ' · ' + (c.lake ? c.lake + ' · ' : '') + 'flow ' + c.dischargeM3s.toLocaleString('en-US') + ' m³/s · runoff ' + c.runoffMm + ' mm/yr · basin ' + c.basin : '') + (c.glacial && glacialView() ? ' · ice age: ' + c.glacial + (c.glacialIceM ? ' ' + c.glacialIceM.toLocaleString('en-US') + ' m thick' : '') : '');
 }
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Arrow keys rotate, plus and minus zoom, Enter inspects the centre cell.');
 canvas.addEventListener('keydown', e => { if (!mesh) return; const k = e.key; if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') camera.position.z = THREE.MathUtils.clamp(camera.position.z - .15, 1.7, 6); else if (k === '-' || k === '_') camera.position.z = THREE.MathUtils.clamp(camera.position.z + .15, 1.7, 6); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });

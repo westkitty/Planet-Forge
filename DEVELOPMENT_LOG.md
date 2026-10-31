@@ -51,3 +51,14 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Attempt 2, zonal-band down-gradient diffusion with D from Frierson et al. (2007): B 59 → 55%, runoff ratio 0.65 → 0.61, P > 70° 74 → 104 mm/yr, land snowfall ≥ 60° 155 → 356 mm/yr. The first version cost ~+170 ms per world. Moving the transport loop into its own function and applying the diffusion every 3 iterations (operator splitting) brought `computeClimate` to 369 ms (was 389 ms). Taking precipitation from the last iteration only broke P/E closure (1.11); now averaged over the last 3-iteration cycle.
 - Tests 35/35 (new `tests/eddy.test.js`), seed report 20/20 reproducible and distinct at 638–847 ms/seed, local smoke 78/78.
 - 08:01–08:09 ET: b7e95a1 pushed and fast-forwarded to main; Actions 41199283820 verify + deploy success; live asset hashes match the local build; live smoke 78/78. F-0007 COMPLETE.
+
+## 2026-10-31 08:14 ET — cycle 7 (manual, user said "Finish the ice age"): F-0005 glacial maximum finished
+
+- Lock read "released" (cycle 6); no PAUSED/STOPPED. Lock taken as the manual ice-age cycle. Branch `feat/glaciation` from `wip/glaciation-eddy` (42f52ae).
+- Baseline glacial-0.7 on 20 seeds: ice median 1.3 %, sea fall median 4.3 m, 1 seed with a bridge, 739–1,291 ms per world.
+- Attempt 1, EBM re-solved with full Köhler forcing and its own snow/sea-ice albedo: runaway (7 K cooling before ice sheets, 340–800 m sea fall). Rejected.
+- Attempt 2, frozen-albedo linear EBM with explicit sea-ice/vegetation/dust/shelf forcings: cooling 4.2–6.0 K, but sheets still grew one ring per iteration without converging, because of the 620 m margin lift.
+- Attempt 3, whole-sheet budget: equilibrium sheets far too big (up to 25 % ice, 1,180 m). Adding accumulation-limited thickness alone gave thin, very wide sheets. Final: a sheet spreads only once it has built its full profile, within a 90,000-year build-up.
+- Calibration: steps 24/36/40/44/48 at Earth obliquity gave a median fall of 66/100/110/116/127 m; chose 48. At seeded obliquity the results are bimodal (documented).
+- On-demand getter; interglacial fingerprint identical to main; tests 40/40 (new: EBM linearity, on-demand isolation, mass/sea-level bookkeeping, gazetteer, 20-seed Earth-obliquity bar); seed report 20/20 reproducible and distinct (713–990 ms with the glacial state); local smoke 86/86 (new: era toggle, gazetteer panel, Ice age layer, return to today, export columns, era keyboard reach).
+- Order note: the tests were written alongside the implementation, not strictly before it.

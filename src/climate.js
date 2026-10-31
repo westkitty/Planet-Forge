@@ -53,7 +53,13 @@ export const snowAlbedo = T => (T > SNOW_T0 ? 0.3 : T < SNOW_T1 ? 0.62 : 0.3 + 0
 const SNOW_T0 = 0, SNOW_T1 = -10, EBM_ITER = 30, ZONAL_LAND_KM = 500;
 
 /** Zonal energy-balance model on 0.5° latitude rows. Returns annual temperature and monthly anomalies per row. */
-export function zonalEnergyBalance(tiltDeg) {
+// opts (glacial-0.8, F-0005; omitted for the interglacial climate, whose output is unchanged):
+//   forcing: radiative forcing (W m^-2) added to the absorbed sunlight, one number or one value per row;
+//   iceRow: per-row fraction covered by an ice sheet, whose surface albedo is at least ICE_SHEET_ALBEDO all year;
+//   albedo: fixed monthly albedo per row (R x 12). The temperature-dependent snow/sea-ice albedo is then not updated,
+//   the model is linear and one pass is exact.
+export const ICE_SHEET_ALBEDO = 0.62;
+export function zonalEnergyBalance(tiltDeg, opts = null) {
   const R = 361, Qm = new Float64Array(R * 12), Qa = new Float64Array(R), lat = new Float64Array(R), w = new Float64Array(R);
   const decl = Array.from({ length: 12 }, (_, m) => declination(tiltDeg, m));
   let wsum = 0;
@@ -68,10 +74,16 @@ export function zonalEnergyBalance(tiltDeg) {
   const Fre = new Float64Array(R * H), Fim = new Float64Array(R * H), Ore = new Float64Array(R * H), Oim = new Float64Array(R * H), ocean = new Float64Array(R * 12), zonal = new Float64Array(R * 12);
   const ab = OLR_B + TRANSPORT, Kz = MARITIME_K * Math.exp(-ZONAL_LAND_KM / MARITIME_KM);
   for (let k = 0; k < R; k++) for (let m = 0; m < 12; m++) alM[k * 12 + m] = 0.3;
-  let Tmean = 15;
-  for (let it = 0; it < EBM_ITER; it++) {
+  let Tmean = 15; const forcingOpt = opts?.forcing ?? 0, iceRow = opts?.iceRow ?? null, fixedAlbedo = opts?.albedo ?? null;
+  const forcingAt = typeof forcingOpt === 'number' ? () => forcingOpt : k => forcingOpt[k];
+  if (fixedAlbedo) alM.set(fixedAlbedo);
+  for (let it = 0; it < (fixedAlbedo ? 1 : EBM_ITER); it++) {
     let absorbed = 0;
-    for (let k = 0; k < R; k++) { Aa[k] = 0; for (let m = 0; m < 12; m++) { const v = Qm[k * 12 + m] * (1 - alM[k * 12 + m]); Am[k * 12 + m] = v; Aa[k] += v / 12; } absorbed += w[k] * Aa[k]; }
+    for (let k = 0; k < R; k++) {
+      Aa[k] = 0; const fi = iceRow ? iceRow[k] : 0, forcing = forcingAt(k);
+      for (let m = 0; m < 12; m++) { const a = alM[k * 12 + m], ae = fi > 0 && a < ICE_SHEET_ALBEDO ? a + fi * (ICE_SHEET_ALBEDO - a) : a; const v = Qm[k * 12 + m] * (1 - ae) + forcing; Am[k * 12 + m] = v; Aa[k] += v / 12; }
+      absorbed += w[k] * Aa[k];
+    }
     Tmean = (absorbed / wsum - OLR_A) / OLR_B; // global balance: transport sums to zero
     for (let k = 0; k < R; k++) {
       Tann[k] = (Aa[k] - OLR_A + TRANSPORT * Tmean) / ab;
@@ -87,10 +99,10 @@ export function zonalEnergyBalance(tiltDeg) {
         const lr = (fr * al - fi * bb) / d, li = (fi * al + fr * bb) / d;
         for (let m = 0; m < 12; m++) { const th = 2 * Math.PI * h * (m + 0.5) / 12, c = Math.cos(th), sn = Math.sin(th); ocean[k * 12 + m] += Ore[j] * c + Oim[j] * sn; zonal[k * 12 + m] += 0.5 * (Ore[j] * c + Oim[j] * sn + lr * c + li * sn); }
       }
-      for (let m = 0; m < 12; m++) alM[k * 12 + m] = 0.5 * alM[k * 12 + m] + 0.5 * snowAlbedo(Tann[k] + zonal[k * 12 + m]);
+      if (!fixedAlbedo) for (let m = 0; m < 12; m++) alM[k * 12 + m] = 0.5 * alM[k * 12 + m] + 0.5 * snowAlbedo(Tann[k] + zonal[k * 12 + m]);
     }
   }
-  for (let k = 0; k < R; k++) albedo[k] = Qa[k] > 1e-6 ? 1 - Aa[k] / Qa[k] : snowAlbedo(Tann[k]);
+  for (let k = 0; k < R; k++) albedo[k] = Qa[k] > 1e-6 ? 1 - (Aa[k] - forcingAt(k)) / Qa[k] : snowAlbedo(Tann[k]);
   // Equilibrium (zero-heat-capacity) anomaly, kept for diagnostics and the glaciation work: (A_m - A_ann)/(B + D).
   const anomaly = new Float64Array(R * 12);
   for (let k = 0; k < R; k++) for (let m = 0; m < 12; m++) anomaly[k * 12 + m] = (Am[k * 12 + m] - Aa[k]) / ab;

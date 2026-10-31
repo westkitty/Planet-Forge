@@ -101,3 +101,58 @@ Per-seed diagnostic (Node, 100,002 cells, this branch, undamped climate-0.3):
 Low-obliquity worlds now grow real ice sheets (DET-16: 4.25% ice, 92.7 m fall; DET-08 and DET-15: ≈ 44 m), but no land bridge forms and high-obliquity worlds (> 30°) stay nearly ice-free. Still not shippable.
 
 New diagnosis: the moisture model delivers almost no precipitation poleward of 70°. Zonal mean annual precipitation on DET-04/05/10/11/16: land 279 mm at 60–70°, **4 mm at 70–80°, 0 at 80–90°** (ocean 562, 35, 7), against ≈ 200–300 mm observed at 70–80° (GPCP, Adler et al. 2003). The subtropical band 20–30° is also extreme (land 141 mm). Cause: the transport is purely advective along the prescribed winds; polar easterlies blow equatorward, cold-air evaporation is cut to 10% below −2 °C, and there is no eddy (diffusive) poleward moisture transport, which carries most of Earth's mid-to-high-latitude moisture flux (Peixoto & Oort 1992). Ice sheets are starved of snow. Next: add eddy moisture diffusion as its own verified climate feature (it should also address the arid bias), then resume this branch and bring generation back under 1 s.
+
+## Cycle 7 (2026-10-31 08:14 ET, manual, user said "Finish the ice age"): glacial-0.8, shipped
+
+Status update (append-only; the status line at the top of this file is historical): F-0005 is finished as world model `glacial-0.8` on branch `feat/glaciation` (from `wip/glaciation-eddy` 42f52ae). Deployment evidence is recorded in OPERATIONAL_STATE.md.
+
+### The bar, fixed before the final measurement
+
+Earth's last glacial maximum is an Earth-specific result: Earth's obliquity and its northern continents at 45–75°. Planet Forge seeds draw obliquity from 10–35°, and a 33° world gets far more polar summer sunshine than Earth. So the bar is measured on each of the 20 test seeds' own geography **at Earth's obliquity (23.44°)**, and the seeded-obliquity results are reported next to it without a pass/fail claim:
+
+| Measure (median of 20 seeds, 100,002 cells) | Bar | Earth reference |
+|---|---|---|
+| Sea-level fall | 100–140 m | ≈ 134 m (Lambeck et al. 2014); ≈ 120–125 m commonly cited |
+| Glacial ice, % of surface | 5–11 % | ≈ 8 % at the LGM, ≈ 3 % today (USGS) |
+| Global mean cooling | 4–6.5 K | 4.5 ± 0.9 K (Annan, Hargreaves & Mauritsen 2022); 6.1 K (Tierney et al. 2020) |
+| Seeds with a land bridge | ≥ 3 of 20 | Beringia, Sunda, Sahul and others on Earth |
+| Default (interglacial) generation | unchanged, ≤ ≈ 1 s | — |
+
+### What changed from glacial-0.7, and why
+
+1. **On demand.** `planet.glaciation` is a memoised getter, so default generation does not pay for it. Interglacial outputs are byte-identical to eddy-0.6 on main: the same 20-seed fingerprint (e79e4d88…) over elevation, temperature, precipitation, Köppen, biome, monthly fields, discharge, lakes, basins, settlements and chronicle.
+2. **Linear EBM forcing (fixes the runaway).** The first attempt re-solved the EBM with its temperature-dependent snow/sea-ice albedo and the full Köhler et al. (2010) forcing. It cooled mid-obliquity worlds by 7 K before any ice sheet and ran away to 11–17 K and 340–800 m sea fall. That is the small-ice-cap instability of Budyko–Sellers models, made worse because today's model poles sit on the steep part of the albedo ramp. glacial-0.8 freezes the EBM albedo at today's monthly values, so ΔT = ΔF / B globally. Each albedo feedback is then an explicit term: GHG −2.77 (computed; Köhler −2.8), dust −1.9, exposed shelf −0.6 (uniform), sea ice/snow −2.1 (on rows with a freezing month today), vegetation −1.1 (land at 40–80°), plus the modelled ice sheets (row albedo raised to 0.62). The total prescribed forcing is −8.5 W m⁻²; Köhler's LGM total, including land ice, is −12.4. The prescribed λ = 0.8 of glacial-0.5 to 0.7 is gone. Polar amplification comes from where the sea-ice, vegetation and ice-sheet forcings are placed.
+3. **Whole-sheet mass budget (fixes the iteration-limited growth).** glacial-0.7 lifted every cell next to the ice by a 620 m margin, so sheets advanced one cell per iteration until the iterations ran out. Now accumulation cells are ice. A sheet spreads into its ablation ring (least negative first) only while its total balance stays ≥ 0 and it has built its full Nye profile, and a sheet in deficit retreats.
+4. **Accumulation-limited thickness.** Each sheet's volume is last step's ice plus its net balance over the step. The Nye profile is scaled down to that volume, never up, so ice cannot exceed the snow that fell.
+5. **Elevation desert.** Precipitation is scaled by Clausius–Clapeyron (7 %/K) for the full surface cooling, including the lapse-rate cooling of the ice surface.
+6. **Build-up time.** The model runs a 90,000-year build-up (inception ≈ 116 ka to the LGM ≈ 26.5 ka; Clark et al. 2009 date the LGM positions to 26.5–19 ka) in N steps, and margins move at most one cell (~70 km) per step. **N = 48 is the one calibrated parameter.** It was chosen from N = 24/36/40/44/48 so that the Earth-obliquity median sea-level fall lands inside Earth's 120–134 m range. It implies a maximum margin advance of ≈ 37 m/yr, below the ≈ 57 m/yr mean radial growth implied by the Laurentide's 611 km²/yr area growth (Clark et al. 2009). Ice cover, cooling and land bridges were not tuned.
+7. **Gazetteer, UI and export.** Named ice sheets (area, volume, maximum thickness, centroid, whether it survives today) and named land bridges (landmasses joined, area, centroid). The UI gains an Era toggle (Today / Last glacial maximum) that draws ice and exposed shelves over any layer, an "Ice age: ice sheets and land bridges" layer, an Ice age panel, glacial stats and an inspection line. The export gains `glacial` (prehistory, stats, ice sheets, land bridges, state codes) and columns `glacialState` and `glacialIceM`.
+
+### Before/after, 20 seeds DET-00..19, 100,002 cells, Node on the agent box
+
+| | glacial-0.7 (42f52ae), seeded obliquity | glacial-0.8, seeded obliquity | glacial-0.8, Earth obliquity 23.44° | Bar |
+|---|---|---|---|---|
+| glacial ice, % of surface | 0.34–9.02 (median 1.26) | 0.66–17.52 (median 3.85) | 2.22–12.15 (median **5.28**) | 5–11 ✔ |
+| sea-level fall, m | 0.6–141.9 (median 4.3) | 3.3–381.2 (median 74.8) | 34.9–284.1 (median **127.1**) | 100–140 ✔ |
+| global cooling, K | 2.29–3.65 (median 2.46) | 4.14–7.71 (median 4.96) | 4.51–7.28 (median **5.45**) | 4–6.5 ✔ |
+| seeds with a land bridge (bridges) | 1 (1) | 4 (5) | **5** (6) | ≥ 3 ✔ |
+| default world generation, ms | 739–1,291 (glacial included, median 910) | 642–853 (median 692; glacial not computed) | 710–919 (median 783) | ≤ ≈ 1,000 ✔ |
+| glacial state on demand, ms | — | 266–823 (median 469) | 428–805 (median 557) | — |
+
+The interglacial default generation on main (eddy-0.6), measured the same way, is 685–915 ms (median 766), so there is no regression. In headless Chrome (SwiftShader) the live-equivalent preview reported forge-and-render 1,090–1,143 ms for ATLAS-001 and glacial on demand 632–660 ms.
+
+### Honest limitations
+
+- **Seeded obliquity is bimodal.** The 9 seeds with obliquity ≥ 29° glaciate weakly (3–22 m). Their poles get much more summer sunshine, and the base climate gives their polar land 23–30 °C warmest months, which is probably too warm (no snowmelt or permafrost latent-heat buffer, no polar summer cloud). Low-obliquity seeds glaciate strongly: DET-08 (16.4°) reaches 381 m and 17.5 % ice, about 3× Earth. The seeded-obliquity median sea fall (74.8 m) is below Earth's.
+- Today's poles are still warm and dry. Present-day ice is a median 1.4 % of the surface against Earth's 3 %. This base-climate defect was not fixed in this cycle, because fixing it changes every interglacial output.
+- High tropical plateaus (> ~5 km) carry present-day "ice sheets" of up to ~2 M km² (Nye-profile height feedback on mountain plateaus). They mostly cancel in the sea-level difference, but they appear in the gazetteer.
+- It is a snapshot, not a time-integrated glacial cycle. There is no ice dynamics beyond the scaled Nye profile and no isostasy, calving, marine ice sheets or sea-ice dynamics. Eccentricity and precession are not modelled. The forcings are Earth's LGM values applied to every world. The build-up step count is calibrated, as stated above.
+
+### Additional sources (verified 2026-10-31)
+
+- Köhler, P. et al. (2010). What caused Earth's temperature variations during the last 800,000 years? *Quat. Sci. Rev.* 29, 129–145. LGM forcing −12.4 W m⁻²: GHG −2.8, land cryosphere −4.5 (land ice −3.2, exposed shelves −0.6), sea ice −2.1, vegetation −1.1, dust −1.9.
+- Lambeck, K. et al. (2014). Sea level and global ice volumes from the Last Glacial Maximum to the Holocene. *PNAS* 111, 15296–15303. −134 m, ≈ 52 × 10⁶ km³ more grounded ice.
+- Annan, J. D., Hargreaves, J. C. & Mauritsen, T. (2022). A new global surface temperature reconstruction for the Last Glacial Maximum. *Clim. Past* 18, 1883–1896. −4.5 ± 0.9 K.
+- Tierney, J. E. et al. (2020). Glacial cooling and climate sensitivity revisited. *Nature* 584, 569–573. −6.1 K (−6.5 to −5.7).
+- USGS FAQ, "How does present glacier extent and sea level compare to … the Last Glacial Maximum?": 8 % of the surface and 25 % of land at the LGM; 3 % and 11 % today.
+- Clark, P. U. et al. (2009). The Last Glacial Maximum. *Science* 325, 710–714. LGM positions 26.5 to 19–20 ka; Laurentide area growth 611 km² yr⁻¹.

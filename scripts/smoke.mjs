@@ -138,6 +138,23 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const sBack = await canvas.screenshot();
   check(p + 'returning to seeded tilt restores identical globe', (await diff(page, prev, sBack)) < 0.002);
 
+  // Ice age (glacial-0.8): the era toggle computes the glacial maximum on demand and redraws ice sheets and exposed
+  // shelves over the current layer; the Ice age layer shows ice thickness and land bridges; returning restores today.
+  await page.selectOption('#era', 'glacial');
+  await page.waitForFunction(() => window.__planetForge && typeof window.__planetForge.glacialMs === 'number', null, { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  const sGl = await canvas.screenshot();
+  fs.writeFileSync(path.join(outDir, `${vp.name}-3-era-glacial.png`), sGl);
+  const dGl = await diff(page, sBack, sGl), ice = await page.locator('#iceage').innerText(), glStats = await page.locator('#stats').innerText(), gperf = await page.evaluate(() => window.__planetForge);
+  check(p + 'era toggle draws the glacial maximum', dGl > 0.01 && /Glacial sea fall: [\d.]+ m/.test(glStats), `changed fraction=${dGl.toFixed(3)}, glacialMs=${gperf && gperf.glacialMs}`);
+  check(p + 'ice-age gazetteer lists sea fall, ice sheets and land bridges', /the sea fell [\d.]+ m/.test(ice) && /Ice sheets: /.test(ice) && /Land bridges: /.test(ice), ice.slice(0, 220));
+  await page.selectOption('#layer', 'glacial'); await page.waitForTimeout(500);
+  const sGlL = await canvas.screenshot();
+  fs.writeFileSync(path.join(outDir, `${vp.name}-3-layer-glacial.png`), sGlL);
+  check(p + 'ice age layer changes colours', (await diff(page, sGl, sGlL)) > 0.02);
+  await page.selectOption('#era', 'today'); await page.selectOption('#layer', 'biome'); await page.waitForTimeout(500);
+  check(p + 'returning to today restores identical globe', (await diff(page, sBack, await canvas.screenshot())) < 0.002);
+
   // Cell inspection by click at centre (after drag + layer changes, orientation must be kept)
   await page.mouse.click(cx, cy);
   await page.waitForTimeout(200);
@@ -164,7 +181,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const file = path.join(outDir, `${vp.name}-${dl.suggestedFilename()}`);
   await dl.saveAs(file);
   let ok = false, detail = '';
-  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); ok = j.seed === 'ATLAS-001' && Array.isArray(j.rivers) && j.rivers.length > 0 && j.columns?.dischargeM3s?.length === j.cellCount && Array.isArray(j.sampledCells) && j.sampledCells.length > 1000 && Array.isArray(j.settlements); detail = `${dl.suggestedFilename()} seed=${j.seed} cells=${j.sampledCells?.length} version=${j.version}`; } catch (e) { detail = e.message; }
+  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); ok = j.seed === 'ATLAS-001' && Array.isArray(j.rivers) && j.rivers.length > 0 && j.columns?.dischargeM3s?.length === j.cellCount && Array.isArray(j.sampledCells) && j.sampledCells.length > 1000 && Array.isArray(j.settlements) && j.columns?.glacialState?.length === j.cellCount && j.columns?.glacialIceM?.length === j.cellCount && j.glacial?.stats?.seaLevelFallM >= 0 && Array.isArray(j.glacial?.landBridges) && Array.isArray(j.glacial?.iceSheets); detail = `${dl.suggestedFilename()} seed=${j.seed} cells=${j.sampledCells?.length} version=${j.version}`; } catch (e) { detail = e.message; }
   check(p + 'JSON export downloads valid atlas', ok, detail);
 
   // Responsive: no horizontal overflow, panel visible
@@ -181,9 +198,9 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   await page.focus('body');
   const order = [];
   for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
-  check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
+  check(p + 'keyboard focus reaches seed, forge, layer, era, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'era', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
-  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'glacial-0.7' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
+  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'glacial-0.8' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 
