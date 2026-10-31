@@ -8,8 +8,8 @@ Prepared 2026-10-31.
 
 ## Status
 
-- **26 of 33 packages are LIVE_VERIFIED.** For each one, a post-deploy CI job confirmed the public JS/CSS are byte-identical to the build and ran the browser smoke suite against the public URL.
-- **7 packages are MERGED** (PF-04, 16, 19, 24, 25, 26, 32). Their deploy, run 41233978729, was in progress when this report was written; the ledger records its outcome. The program is **COMPLETE only when that run's live-verify job passes**.
+- **All 33 packages are LIVE_VERIFIED.** For each one, a post-deploy CI job confirmed the public JS/CSS are byte-identical to the build and ran the browser smoke suite against the public URL.
+- The final deploy (run 41233978729, production main 4fb4cea) passed its live-verify job with **158/158 checks on the public site**. The program is COMPLETE against the ledger's definition, with the limitations listed below.
 
 | Milestone | Packages | PR | Merge | Deploy / live-verify |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ Prepared 2026-10-31.
 | 1 Planetarium | PF-02, 03, 05, 06, 07, 08 | [#3](https://github.com/westkitty/Planet-Forge/pull/3) | dbf3c2a | 41227194178 ✓ (live JS hash = build, smoke 119/119 on the public URL) |
 | 2 Observatory | PF-09, 10, 11, 12, 13, 27, 30, 31 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ |
 | 3 + 4 Playable science, living worlds | PF-14, 15, 17, 18, 20, 21, 22, 23, 28, 29, 33 | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | 0821d72 | 41233105655 ✓ |
-| 5 + 6 Celestial, exploration | PF-04, 16, 19, 24, 25, 26, 32 | [#6](https://github.com/westkitty/Planet-Forge/pull/6) | 4fb4cea | 41233978729 (see ledger) |
+| 5 + 6 Celestial, exploration | PF-04, 16, 19, 24, 25, 26, 32 | [#6](https://github.com/westkitty/Planet-Forge/pull/6) | 4fb4cea | 41233978729 ✓ (live smoke 158/158) |
 
 ## What the game now contains
 
