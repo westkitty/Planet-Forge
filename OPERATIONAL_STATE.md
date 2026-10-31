@@ -83,3 +83,8 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - 20 seeds: glacial ice 0.27–4.25% of the surface (was 0.07–1.12%), sea-level fall 0.5–92.7 m (was 0.3–11.9), 0 land bridges, 773–1085 ms per world (over the ~1 s budget). Not shippable.
 - Diagnosis: almost no precipitation poleward of 70° (land 4 mm/yr at 70–80°, Earth ≈ 200–300) because moisture transport is purely advective with no eddy diffusion. Details in `docs/features/F-0005-glaciation.md` on the branch.
 - Next: eddy (diffusive) poleward moisture transport as its own verified feature (also targets the arid bias); then resume `wip/glaciation-season`.
+
+## 2026-10-31 08:01 ET — cycle 6: F-0007 eddy-0.6, built and verified locally (append-only log entry)
+
+- Branch `feat/eddy-moisture` from fc8f80b. Local: tests 35/35, seed report 20/20 reproducible/distinct (638–847 ms/seed), smoke 78/78 against vite preview. Deployment status follows in the next entry.
+- 20 seeds: Köppen B 59.2 → 54.7% of land, runoff ratio 0.65 → 0.61, endorheic land 39.3 → 31.4%, precipitation poleward of 70° 74 → 104 mm/yr, land snowfall ≥ 60° 155 → 356 mm/yr, Köppen E and Ice biome unchanged (temperature-only). Full tables: `docs/features/F-0007-eddy-moisture.md`.

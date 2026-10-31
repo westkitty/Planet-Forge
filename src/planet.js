@@ -1,4 +1,4 @@
-// Planet Forge world model (version season-0.5: tectonic-0.2 relief + climate-0.3 circulation with season-0.5 heat-capacity-damped seasons + hydro-0.4 rivers, lakes, basins).
+// Planet Forge world model (version eddy-0.6: tectonic-0.2 relief + climate-0.3 circulation with season-0.5 heat-capacity-damped seasons and eddy-0.6 poleward eddy moisture transport + hydro-0.4 rivers, lakes, basins).
 //
 // Conceptual approximation, not a geodynamic simulation. The planet is a
 // geodesic cell mesh (10f^2+2 cells); plates grow from seeded nuclei, each
@@ -11,7 +11,7 @@ import { computeClimate, BIOMES, KOPPEN } from './climate.js';
 import { computeHydrology, RIVER_MIN_M3S, LAKE } from './hydrology.js';
 
 export { BIOMES, KOPPEN };
-export const MODEL_VERSION = 'season-0.5';
+export const MODEL_VERSION = 'eddy-0.6';
 export const LAKE_TYPES = ['none', 'fresh lake', 'salt lake', 'salt flat'];
 export const EARTH_RADIUS_KM = 6371;
 export const BOUNDARY = ['none', 'convergent', 'divergent', 'transform'];
@@ -250,7 +250,7 @@ export function createPlanet(seed, opts = {}) {
     lat[i] = Math.round(Math.asin(clamp(y, -1, 1)) * 18000 / Math.PI) / 100; lon[i] = Math.round(Math.atan2(z, x) * 18000 / Math.PI) / 100;
   }
   const tilt = opts.tilt ?? Math.round((10 + rng(s32 ^ 0x7117c0de)() * 25) * 100) / 100;
-  const climate = computeClimate({ mesh, elevation, lat, spacingKm, noise: i => fbm(P[3 * i] * 2, P[3 * i + 1] * 2, P[3 * i + 2] * 2, noiseSeed ^ 0x77) }, tilt);
+  const climate = computeClimate({ mesh, elevation, lat, spacingKm, noise: i => fbm(P[3 * i] * 2, P[3 * i + 1] * 2, P[3 * i + 2] * 2, noiseSeed ^ 0x77), eddyMoisture: opts.eddyMoisture !== false }, tilt);
   const { temperature, rainfall, biome } = climate;
 
   // 8. Hydrology: runoff, Priority-Flood drainage, rivers, lakes with water balance, basins.

@@ -42,3 +42,11 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Result: high-latitude summers 37 → 14 °C, ocean range 19 → 8 K; Köppen B 62 → 59% (still failing), runoff ratio 0.61 → 0.65 (worse), winters too mild. Tests 31/31, seed report 20/20 reproducible and distinct (653–900 ms), smoke 78/78 locally.
 - `wip/glaciation` not rebased this cycle (time).
 - 07:41–07:45 ET: F-0006 deployed and verified (Actions 41197502470, live hashes match, live smoke 78/78). With time left, merged `wip/glaciation` onto season-0.5 as `wip/glaciation-season` (98e7f52): ice 0.27–4.25%, sea fall ≤ 92.7 m, 0 land bridges, up to 1085 ms/world. Found that precipitation poleward of 70° is ≈ 0 (no eddy moisture transport). Checkpointed, not shipped. Every push and the merge ran without an approval card.
+
+## 2026-10-31 07:48 ET — cycle 6 (user said "continue"): F-0007 eddy moisture transport
+
+- Old lock read "released" (cycle 5); no PAUSED/STOPPED. Lock taken. Branch `feat/eddy-moisture` from fc8f80b.
+- Extended `scripts/climate-diagnostics.mjs` with precipitation poleward of 70°, land snowfall poleward of 60° and Ice biome share; 20-seed baseline on season-0.5.
+- Attempt 1, cell-scale random walk (share 0.2 / 0.5 of outflow spread to all neighbours): Köppen B 59 → 62 / 70%. Rejected and reverted.
+- Attempt 2, zonal-band down-gradient diffusion with D from Frierson et al. (2007): B 59 → 55%, runoff ratio 0.65 → 0.61, P > 70° 74 → 104 mm/yr, land snowfall ≥ 60° 155 → 356 mm/yr. The first version cost ~+170 ms per world. Moving the transport loop into its own function and applying the diffusion every 3 iterations (operator splitting) brought `computeClimate` to 369 ms (was 389 ms). Taking precipitation from the last iteration only broke P/E closure (1.11); now averaged over the last 3-iteration cycle.
+- Tests 35/35 (new `tests/eddy.test.js`), seed report 20/20 reproducible and distinct at 638–847 ms/seed, local smoke 78/78.

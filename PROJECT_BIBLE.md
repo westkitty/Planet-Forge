@@ -46,3 +46,9 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - World version string is `season-0.5`. Relief identical to tectonic-0.2; every climate, Köppen, biome, hydrology and settlement output changes for the same seed.
 - F-0005 (ice-age glaciation) remains in progress on `wip/glaciation`; F-0006 was shipped first because F-0005 depends on it.
 - Still conceptual: arid bias persists (49–83% Köppen B vs ≈30%), runoff ratio 0.55–0.73, high-latitude winters too mild, poles warm at Earth-like tilt.
+
+## 2026-10-31 — World model eddy-0.6 (append-only)
+
+- Roadmap item 3 continued: water vapour is now also carried poleward by a conceptual eddy flux, a down-gradient diffusion of in-transit moisture between 2° latitude bands with D = 1.87 × 10⁶ m² s⁻¹ (Frierson, Held & Zurita-Gotor 2007), on top of the mean-wind advection. Details, before/after statistics, assumptions and sources: `docs/features/F-0007-eddy-moisture.md`.
+- World version string is `eddy-0.6`. Relief and temperatures identical to season-0.5 for the same seed; precipitation, Köppen, biomes, hydrology and settlements change.
+- Still conceptual: arid bias reduced but not fixed (45–78% Köppen B vs ≈30%), runoff ratio 0.43–0.70, little precipitation at 80–90° on low-tilt planets, poles warm at Earth-like tilt.
