@@ -196,6 +196,8 @@ function computeCoasts() {
   }
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
+// Declared before anything that can call resize() or generate() during start-up (avoids a temporal-dead-zone crash).
+let local = null; // PF-19 / PF-32: when set, the app renders this local scene instead of the globe
 function generate() { stopTour('stopped: new world'); fogMask = null; diffMap = null; if (local) { local.view.dispose(); local = null; } const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); applyCelestial(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
 // ---- PF-03 graphics quality and PF-05/07 sky controls ----
 const graphicsSelect = document.querySelector('#graphics'), dayButton = document.querySelector('#daycycle'), daySpeed = document.querySelector('#dayspeed'), cloudButton = document.querySelector('#clouds'), clockLabel = document.querySelector('#clock');
@@ -304,7 +306,6 @@ function pickAt(clientX, clientY) {
   if (cell >= 0) lastPick = cell;
   return cell;
 }
-let local = null; // PF-19 / PF-32: when set, the app renders this local scene instead of the globe
 function localMove(input) { if (!local || local.state.over) return; local.state = moveVehicle(local.patch, local.list, local.state, input, local.kind === 'ocean' ? 'sub' : 'rover'); local.view.sync(local.state); local.onChange(local.state); }
 let skyPick = null; // PF-04: when set, taps that miss the planet pick a star instead (never a planet cell)
 function inspectAt(clientX, clientY) {
