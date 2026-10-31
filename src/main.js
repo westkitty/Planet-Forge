@@ -23,7 +23,10 @@ const baseMesh = geodesicMesh(FREQUENCY);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, .1, 120);
 camera.position.set(0, 0, 3);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+// Startup guard: a readable message instead of a blank page when WebGL 2 is unavailable.
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' }); }
+catch (e) { window.__pfBootFail?.('This browser could not create a WebGL 2 context (' + e.message + '). Enable hardware acceleration or use a current Chrome, Edge, Firefox or Safari.'); throw e; }
 root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
 const overlays = createOverlays(baseMesh, presentation.radius);
@@ -91,6 +94,7 @@ function disposeAnnotation() {
   annotation.material.dispose();
   annotation = null;
 }
+let globeFallback = false; // set if the patched globe shader fails to compile on this GPU
 function makeGlobe() {
   if (glacialView()) {
     const t0 = performance.now(), fresh = !planet.glaciationComputed;
@@ -109,7 +113,7 @@ function makeGlobe() {
     geometry.setIndex(new THREE.BufferAttribute(baseMesh.triangles, 1));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(baseMesh.positions.length), 3));
     presentation.shapeTerrain(geometry, planet);
-    mesh = new THREE.Mesh(geometry, presentation.createGlobeMaterial());
+    mesh = new THREE.Mesh(geometry, globeFallback ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: .015 }) : presentation.createGlobeMaterial());
     if (rotation) mesh.rotation.copy(rotation);
     scene.add(mesh);
     presentation.installWorld(mesh, planet);
@@ -416,8 +420,6 @@ function resize() {
 const resizeObserver = new ResizeObserver(resize);
 resizeObserver.observe(root);
 resize();
-generate();
-syncClock();
 let lastFrame = performance.now(), prevFrame = 0;
 function animate(now = performance.now()) {
   if (disposed) return;
@@ -438,7 +440,19 @@ function animate(now = performance.now()) {
   if (nextTier) applyQuality(nextTier);
   presentation.afterFirstFrame();
 }
-animate();
+// Let the browser paint the loading screen before the multi-second world generation, then start the loop.
+const boot = document.querySelector('#boot');
+requestAnimationFrame(() => setTimeout(() => {
+  try { generate(); syncClock(); }
+  catch (e) { window.__pfBootFail?.('World generation failed: ' + e.message + '.'); throw e; }
+  animate();
+  requestAnimationFrame(() => {
+    // If the patched globe shader failed to link on this GPU, fall back to the plain material so the planet still shows.
+    const prog = renderer.properties.get(mesh.material).currentProgram;
+    if (prog?.diagnostics?.runnable === false) { globeFallback = true; console.warn('Planet Forge: globe shader failed; using the plain material.'); const old = mesh.material; mesh.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: .015 }); old.dispose(); }
+    window.__pfStarted = true; boot.hidden = true;
+  });
+}, 30));
 window.addEventListener('pagehide', () => {
   disposed = true;
   resizeObserver.disconnect();

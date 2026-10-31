@@ -9,7 +9,7 @@
 </head>
 <body>
 <div id="app">
-  <main id="viewer" role="region" aria-label="3D globe viewer"><div id="cell-label" class="cell-label" hidden aria-hidden="true"></div><p id="tour-caption" class="tour-caption" hidden aria-live="polite"></p></main>
+  <main id="viewer" role="region" aria-label="3D globe viewer"><div id="boot" class="boot" role="status" aria-live="polite"><div class="boot-card"><div class="boot-orb" aria-hidden="true"></div><p id="boot-msg">Forging world… generating 100,002 cells of terrain, climate and rivers. This takes a few seconds.</p><p id="boot-err" class="boot-err" hidden></p></div></div><div id="cell-label" class="cell-label" hidden aria-hidden="true"></div><p id="tour-caption" class="tour-caption" hidden aria-live="polite"></p></main>
   <section id="drawer" class="drawer" role="dialog" aria-label="Observatory" hidden>
     <header class="drawer-head"><div role="tablist" aria-label="Observatory tools"><button role="tab" data-tab="cell">Why</button><button role="tab" data-tab="transect">Transect</button><button role="tab" data-tab="correlate">Correlate</button><button role="tab" data-tab="investigate">Investigate</button><button role="tab" data-tab="tours">Tours</button><button role="tab" data-tab="play">Play</button><button role="tab" data-tab="journal">Journal</button></div><button class="drawer-close" aria-label="Close observatory">×</button></header>
     <p class="drawer-status" role="status" aria-live="polite"></p>
@@ -67,6 +67,25 @@
     </div>
   </aside>
 </div>
+<script>
+  (function () {
+    var shown = false;
+    function fail(msg) {
+      if (window.__pfStarted || shown) return; shown = true;
+      var e = document.getElementById('boot-err'), m = document.getElementById('boot-msg');
+      if (!e) return; e.hidden = false; m.textContent = 'Planet Forge could not start.';
+      e.textContent = msg + ' Try reloading the page; if it persists, please report this message.';
+    }
+    window.__pfBootFail = fail;
+    window.addEventListener('error', function (ev) {
+      var t = ev.target;
+      if (t && t !== window && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) fail('A required file failed to load (' + (t.src || t.href) + '). A new version may have just been published.');
+      else fail('Error: ' + (ev.message || 'unknown') + '.');
+    }, true);
+    window.addEventListener('unhandledrejection', function (ev) { fail('Error: ' + ((ev.reason && ev.reason.message) || ev.reason) + '.'); });
+    setTimeout(function () { if (!window.__pfStarted && !shown) document.getElementById('boot-msg').textContent = 'Still forging… slower devices can take up to a minute.'; }, 20000);
+  })();
+</script>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ await page.addInitScript(() => {
   for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { if (!C) continue; const P = C.prototype, w = (n, f) => { const o = P[n]; P[n] = function (...a) { f(); return o.apply(this, a); }; };
     w('createBuffer', () => s.buffers++); w('deleteBuffer', () => s.buffers--); w('createTexture', () => s.textures++); w('deleteTexture', () => s.textures--); w('createProgram', () => s.programs++); w('deleteProgram', () => s.programs--); }
 });
-await page.goto(url + (url.includes('?') ? '&' : '?') + 'gfx=medium', { waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+await page.goto(url + (url.includes('?') ? '&' : '?') + 'gfx=medium', { waitUntil: 'networkidle' }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 }); await page.waitForTimeout(1500);
 const snap = async label => { await page.evaluate(() => { window.gc?.(); window.gc?.(); }); await page.waitForTimeout(300); const m = await page.evaluate(() => ({ heapMB: +(performance.memory.usedJSHeapSize / 1048576).toFixed(1), ...window.__gl })); console.log(label.padEnd(10), JSON.stringify(m)); return m; };
 const rows = [await snap('start')];
 for (let c = 1; c <= cycles; c++) {
