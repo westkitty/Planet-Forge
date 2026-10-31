@@ -5,11 +5,11 @@ A seeded procedural planet viewer and living atlas. This repository is being boo
 ## Run locally
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-`npm run build` creates the GitHub Pages bundle. `npm test` checks reproducibility and basic geographic invariants. All runtime dependencies are bundled into the built static site.
+`npm run build` creates the GitHub Pages bundle. `npm test` checks reproducibility and basic geographic invariants across 20 fixed seeds. `npm run seed-report` prints per-seed hashes, distributions and timings. `npm run smoke -- <url> [outDir]` drives the app in headless Chrome (set `CHROME_PATH` if Chrome is not in a standard location); CI runs it against `vite preview` before every deploy. All runtime dependencies are bundled into the built static site.
 
 ## Architecture
 
