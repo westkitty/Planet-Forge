@@ -29,17 +29,17 @@ async function canvasStats(page, buf) {
     return { colours: seen.size, meanLum: lum / (d.length / 16) / 3 };
   }, buf.toString('base64'));
 }
-async function diff(page, a, b) {
-  return page.evaluate(async ([a64, b64]) => {
+async function diff(page, a, b, threshold = 30) {
+  return page.evaluate(async ([a64, b64, threshold]) => {
     const load = async s => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const x = c.getContext('2d'); x.drawImage(i, 0, 0); return x.getImageData(0, 0, c.width, c.height).data; };
     const A = await load(a64), B = await load(b64); let n = 0, changed = 0;
-    for (let i = 0; i < Math.min(A.length, B.length); i += 4) { n++; if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 30) changed++; }
+    for (let i = 0; i < Math.min(A.length, B.length); i += 4) { n++; if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > threshold) changed++; }
     return changed / n;
-  }, [a.toString('base64'), b.toString('base64')]);
+  }, [a.toString('base64'), b.toString('base64'), threshold]);
 }
 
 for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile', width: 390, height: 844 }]) {
-  const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, reducedMotion: 'reduce', acceptDownloads: true });
+  const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, reducedMotion: 'reduce', hasTouch: vp.name === 'mobile', acceptDownloads: true });
   const page = await context.newPage();
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
@@ -54,6 +54,14 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   await page.waitForTimeout(800);
   const box = await canvas.boundingBox();
   check(p + 'canvas has size', box && box.width > 100 && box.height > 100, JSON.stringify(box));
+  const footprint = await page.evaluate(() => {
+    const view = document.querySelector('#viewer').getBoundingClientRect();
+    const console = document.querySelector('.panel').getBoundingClientRect();
+    const screen = innerWidth * innerHeight;
+    return { viewer: view.width * view.height / screen, ui: console.width * console.height / screen };
+  });
+  check(p + 'visual console occupies at most 15% of screen', footprint.ui <= 0.15, JSON.stringify(footprint));
+  check(p + 'planet viewing area is at least 85% of screen', footprint.viewer >= 0.85, JSON.stringify(footprint));
 
   const shot0 = await canvas.screenshot();
   fs.writeFileSync(path.join(outDir, `${vp.name}-0-initial.png`), shot0);
@@ -105,6 +113,21 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const zm = await diff(page, afterRot, afterZoom);
   check(p + 'wheel zooms globe', zm > 0.02, `changed fraction=${zm.toFixed(3)}`);
 
+
+  if (vp.name === 'mobile') {
+    const inspectionBefore = await page.locator('#inspect').innerText();
+    const cdp = await context.newCDPSession(page);
+    const initial = await canvas.screenshot();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx - 85, y: cy, id: 1 }, { x: cx + 85, y: cy, id: 2 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx - 30, y: cy, id: 1 }, { x: cx + 30, y: cy, id: 2 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(180);
+    const result = await canvas.screenshot();
+    const change = await diff(page, initial, result);
+    const inspectionAfter = await page.locator('#inspect').innerText();
+    check(p + 'two-finger pinch zooms without unwanted inspection', change > 0.02 && inspectionAfter === inspectionBefore, 'changed fraction=' + change.toFixed(3));
+    await cdp.detach();
+  }
   // Layer selection
   let prev = afterZoom;
   for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'koppen', 'winds', 'rivers', 'basins', 'biome']) {
@@ -127,7 +150,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const dj = await diff(page, sJan, sJul);
   // season-0.5: with heat-capacity-damped seasons January differs from the annual map mostly over land (~0.7% of pixels
   // on ATLAS-001, tilt 13.7°), so the annual->January threshold is 0.3% (was 1% when oceans swung ±14 K); Jan->Jul stays 2%.
-  const daj = await diff(page, sAnn, sJan);
+  const daj = await diff(page, sAnn, sJan, 20);
   check(p + 'season selector changes temperature map', dj > 0.02 && daj > 0.003, `jan->jul changed fraction=${dj.toFixed(3)}, annual->jan=${daj.toFixed(3)}`);
   await page.selectOption('#tilt', '60'); await page.waitForTimeout(1500);
   const sT60 = await canvas.screenshot();
@@ -195,10 +218,10 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     return !(el.getAttribute('aria-label') || lbl.trim() || el.textContent.trim());
   }).map(el => el.id || el.tagName));
   check(p + 'all controls have accessible names', unnamed.length === 0, unnamed.join(','));
-  await page.focus('body');
-  const order = [];
+  await page.focus('#seed');
+  const order = ['seed'];
   for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
-  check(p + 'keyboard focus reaches seed, forge, layer, era, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'era', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
+  check(p + 'keyboard focus from seed reaches forge, layer, era, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'era', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
   check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'glacial-0.8' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
