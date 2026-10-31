@@ -116,3 +116,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - PR #4 (M2) CI 41227541328 green on 7fae459; merged as 3628217.
 - Milestone 3 (PF-14/17/18/22/28/29) in `src/gameplay/` + `src/playUI.js` (Play tab). Repairs during verification: river path direction, ocean-cell basin guard, thaw setup via glacial connectivity, watershed demand scaled to flow (decisions had no effect), survey probes/clues (objectives unreachable).
 - Results: npm test 78/78; smoke 146/146; JS 648.44 kB.
+
+## 2026-10-31 — M2 live; Milestone 4 living worlds built; PR #5 CI repair
+
+- Deploy run 41228746564 (3628217, M2) succeeded including the live-verify job: PF-09/10/11/12/13/27/30/31 LIVE_VERIFIED.
+- PR #5 (M3) CI 41229369561: 145/146. Cause traced in the smoke script: an invalid combined Playwright selector made one wait a no-op, and several computed panels were read after fixed sleeps that are too short on the CI runner. All computed-panel checks now wait on conditions.
+- Milestone 4 (PF-15/20/21/23/33): `src/gameplay/civilization.js`, `src/gameplay/ecology.js`, `src/playHistory.js`; population-weighted settlement lights and ruin markers. Design repairs: no ruins → collapse dynamics; all causes "famine" → dominant-stress attribution; unsolvable mysteries filtered; in-place GPU attribute update; ecology made eventful.
+- Results: npm test 85/85; smoke 151/151. M3 + M4 ship together on PR #5.

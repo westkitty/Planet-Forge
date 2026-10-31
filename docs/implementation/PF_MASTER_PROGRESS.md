@@ -13,31 +13,31 @@ LIVE_VERIFIED only after the deployed build was exercised in a real browser. Rec
 | PF-06 | Living oceans | Presentation | PF-03, PF-05 | LIVE_VERIFIED | claude/determined-mayer-wvolun | b4dee86 | [#3](https://github.com/westkitty/Planet-Forge/pull/3) | dbf3c2a | 41227194178 ✓ | live-verify: assets byte-identical, smoke 119/119 on the public URL; docs/features/M1-planetarium.md |
 | PF-07 | Climate-informed clouds | Presentation | PF-03 | LIVE_VERIFIED | claude/determined-mayer-wvolun | b4dee86 | [#3](https://github.com/westkitty/Planet-Forge/pull/3) | dbf3c2a | 41227194178 ✓ | live-verify: assets byte-identical, smoke 119/119 on the public URL; docs/features/M1-planetarium.md |
 | PF-08 | Settlement illumination | Presentation | PF-05 | LIVE_VERIFIED | claude/determined-mayer-wvolun | b4dee86 | [#3](https://github.com/westkitty/Planet-Forge/pull/3) | dbf3c2a | 41227194178 ✓ | live-verify: assets byte-identical, smoke 119/119 on the public URL; docs/features/M1-planetarium.md |
-| PF-09 | Cinematic planetary expeditions | Presentation/Observatory | PF-10 | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
-| PF-10 | Intelligent geographic selection | Observatory | — | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
-| PF-11 | Planetary event effects | Presentation | — | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
-| PF-12 | The Why Engine | Observatory | PF-10 | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
-| PF-13 | Saved worlds and experiments | Gameplay | — | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
+| PF-09 | Cinematic planetary expeditions | Presentation/Observatory | PF-10 | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
+| PF-10 | Intelligent geographic selection | Observatory | — | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
+| PF-11 | Planetary event effects | Presentation | — | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
+| PF-12 | The Why Engine | Observatory | PF-10 | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
+| PF-13 | Saved worlds and experiments | Gameplay | — | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
 | PF-14 | The Great Thaw | Gameplay | PF-13 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
-| PF-15 | River Kingdoms | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-15 | River Kingdoms | Gameplay | PF-13 | TESTED | claude/determined-mayer-wvolun | (M4) | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | — | — | tests 85/85, smoke 151/151; docs/features/M4-living-worlds.md |
 | PF-16 | God of Consequences | Gameplay/Science | PF-13 | NOT_STARTED | — | — | — | — | — | — |
 | PF-17 | The Cartographer's Oath | Gameplay | PF-10, PF-13 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
 | PF-18 | Faultline Command | Gameplay | PF-13, PF-11 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
 | PF-19 | First Footfall | Exploration | PF-10 | NOT_STARTED | — | — | — | — | — | — |
-| PF-20 | Life Finds a Way | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
-| PF-21 | The Silent Planet | Gameplay | PF-15, PF-33 | NOT_STARTED | — | — | — | — | — | — |
+| PF-20 | Life Finds a Way | Gameplay | PF-13 | TESTED | claude/determined-mayer-wvolun | (M4) | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | — | — | tests 85/85, smoke 151/151; docs/features/M4-living-worlds.md |
+| PF-21 | The Silent Planet | Gameplay | PF-15, PF-33 | TESTED | claude/determined-mayer-wvolun | (M4) | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | — | — | tests 85/85, smoke 151/151; docs/features/M4-living-worlds.md |
 | PF-22 | The Planet Trials | Gameplay | PF-10, PF-13 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
-| PF-23 | Deep Time | Gameplay | PF-13, PF-15 | NOT_STARTED | — | — | — | — | — | — |
+| PF-23 | Deep Time | Gameplay | PF-13, PF-15 | TESTED | claude/determined-mayer-wvolun | (M4) | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | — | — | tests 85/85, smoke 151/151; docs/features/M4-living-worlds.md |
 | PF-24 | Stellar Foundry | Celestial | — | NOT_STARTED | — | — | — | — | — | — |
 | PF-25 | Eclipse Hunter | Celestial | PF-24 | NOT_STARTED | — | — | — | — | — | — |
 | PF-26 | Orbit Architect | Celestial | PF-24 | NOT_STARTED | — | — | — | — | — | — |
-| PF-27 | Planetary transect | Observatory | PF-10 | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
+| PF-27 | Planetary transect | Observatory | PF-10 | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
 | PF-28 | Seasons as strategy | Gameplay | PF-13 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
 | PF-29 | The Watershed Council | Gameplay | PF-13 | TESTED | claude/determined-mayer-wvolun | (M3) | — | — | — | tests 78/78, smoke 146/146; docs/features/M3-playable-science.md |
-| PF-30 | The scientific method | Observatory | PF-10, PF-27 | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
-| PF-31 | Correlation observatory | Observatory | PF-10 | MERGED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | (pending) | tests 70/70, smoke 140/140; docs/features/M2-observatory.md |
+| PF-30 | The scientific method | Observatory | PF-10, PF-27 | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
+| PF-31 | Correlation observatory | Observatory | PF-10 | LIVE_VERIFIED | claude/determined-mayer-wvolun | 7fae459 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ | deploy run incl. live-verify job succeeded (asset hashes + smoke 140 on the public URL); docs/features/M2-observatory.md |
 | PF-32 | Abyssal Frontier | Exploration | PF-10 | NOT_STARTED | — | — | — | — | — | — |
-| PF-33 | The World Remembers | Gameplay | PF-15 | NOT_STARTED | — | — | — | — | — | — |
+| PF-33 | The World Remembers | Gameplay | PF-15 | TESTED | claude/determined-mayer-wvolun | (M4) | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | — | — | tests 85/85, smoke 151/151; docs/features/M4-living-worlds.md |
 
 ## Restart instruction
 

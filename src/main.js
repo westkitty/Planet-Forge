@@ -358,7 +358,7 @@ const observatory = createObservatoryUI({
   get planet() { return planet; }, get selected() { return selected; }, store: gameApi, overlays,
   select: selectCell, flyTo, startTour, stopTour, captureView, restoreView,
   pulse: (c, kind) => overlays.pulse(c, kind), showRoute: path => overlays.showTransect(path.map(cell => ({ cell }))),
-  setFog: mask => { fogMask = mask; makeGlobe(); }, forge: seed => { seedInput.value = seed; generate(); }, showGlacial: () => { eraSelect.value = 'glacial'; makeGlobe(); },
+  setFog: mask => { fogMask = mask; makeGlobe(); }, setSettlementState: (w, st) => presentation.setSettlementState(w, st), highlight: cells => overlays.highlight(cells, 0x9ff0c8), reducedMotion: () => !motionOK(), forge: seed => { seedInput.value = seed; generate(); }, showGlacial: () => { eraSelect.value = 'glacial'; makeGlobe(); },
   flyToLat: lat => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); flyTo(nearestCell(baseMesh, latLonToDir(lat, Math.atan2(d.z, d.x) * 180 / Math.PI), 0)); },
   tourText: () => tour ? `Stop ${tour.i + 1} of ${tour.stops.length}` : lastTourEnd ? 'Tour ' + lastTourEnd + '.' : '',
   worldIdentity: () => ({ seed: planet.seed, tilt: tiltSelect.value === 'seed' ? null : Number(tiltSelect.value), version: planet.version }),

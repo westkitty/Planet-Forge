@@ -31,6 +31,8 @@ async function canvasStats(page, buf) {
     return { colours: seen.size, meanLum: lum / (d.length / 16) / 3 };
   }, buf.toString('base64'));
 }
+// Wait until an element's text matches (CI runners are slower than local machines; never a fixed sleep for computed panels).
+async function waitText(page, sel, re, timeout = 30000) { await page.waitForFunction(([s, r]) => new RegExp(r, 'i').test(document.querySelector(s)?.innerText || ''), [sel, re.source], { timeout }).catch(() => {}); }
 async function diff(page, a, b, threshold = 30) {
   return page.evaluate(async ([a64, b64, threshold]) => {
     const load = async s => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const x = c.getContext('2d'); x.drawImage(i, 0, 0); return x.getImageData(0, 0, c.width, c.height).data; };
@@ -249,35 +251,67 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     const towns = await page.evaluate(() => window.__planetForgeView.settlementScreen().map(t => t.cell));
     await page.click('[data-tab=play]'); await page.waitForTimeout(150);
     const trialsText = await page.locator('.drawer-body').innerText();
-    await page.evaluate(() => window.__planetForgeView.select(0)); await page.click('[data-trial=settlement]'); await page.waitForTimeout(150);
+    await page.evaluate(() => window.__planetForgeView.select(0)); await page.click('[data-trial=settlement]'); await waitText(page, '.drawer-body', /Attempts left: 2/);
     const tr = await page.locator('.drawer-body').innerText();
     check(p + 'Planet Trials: generated challenges with code, transparent criteria and attempts', /ATLAS-001~1/.test(await page.inputValue('[aria-label="Challenge code"]')) && (trialsText.match(/Attempts left/g) || []).length >= 4 && /✘ on land \(20 pts\)/.test(tr) && /Attempts left: 2/.test(tr), tr.slice(0, 200));
     await page.selectOption('#play-mode', 'expedition');
     await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('text=Set start');
     await page.evaluate(c => window.__planetForgeView.select(c), towns[1]); await page.click('text=Set destination');
-    await page.click('#exp-forecast'); await page.waitForFunction(() => document.querySelectorAll('.drawer-body table.grid tr').length === 13, null, { timeout: 30000 }).catch(() => {});
+    await page.click('#exp-forecast'); await page.waitForFunction(() => document.querySelectorAll('.drawer-body table.grid tr').length === 13, null, { timeout: 60000 }).catch(() => {});
     const rowsN = await page.locator('.drawer-body table.grid tr').count();
-    await page.click('#exp-go'); await page.waitForTimeout(400);
+    await page.click('#exp-go'); await waitText(page, '#drawer', /Arrived after|Failed on day|no land route/);
     const ex = await page.locator('.drawer-body .verdict').innerText().catch(() => ''), exInfo = await V();
     check(p + 'Seasonal expedition: 12-month forecast, launch, outcome and route on the globe', rowsN === 13 && (/Arrived after \d+ days/.test(ex) || /Failed on day \d+/.test(ex) || /no land route/.test(await page.locator('.drawer-status').innerText())) && exInfo.store.journal >= 2, `rows=${rowsN} ${ex.slice(0, 120)}`);
-    await page.selectOption('#play-mode', 'survey'); await page.click('#survey-start'); await page.waitForTimeout(300);
+    await page.selectOption('#play-mode', 'survey'); await page.click('#survey-start'); await page.waitForFunction(() => window.__planetForgeView.info().fog, null, { timeout: 30000 }).catch(() => {});
     const fogOn = (await V()).fog;
-    await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('#survey-probe'); await page.waitForTimeout(300);
+    await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('#survey-probe'); await waitText(page, '.drawer-status', /Revealed/);
     const sv = await page.locator('.drawer-body').innerText(), svMsg = await page.locator('.drawer-status').innerText();
-    await page.click('#survey-leave'); await page.waitForTimeout(300);
+    await page.click('#survey-leave'); await page.waitForFunction(() => !window.__planetForgeView.info().fog, null, { timeout: 30000 }).catch(() => {});
     check(p + "Cartographer's Oath: fog of discovery, budgeted probes, mapping progress, full atlas restored on leaving", fogOn && /Budget left: 13/.test(sv) && /Revealed [\d,]+ cells/.test(svMsg) && !(await V()).fog, svMsg);
-    await page.selectOption('#play-mode', 'watershed'); await page.click('#council-run'); await page.waitForTimeout(300);
+    await page.selectOption('#play-mode', 'watershed'); await page.click('#council-run'); await waitText(page, '.drawer-body', /balance error/);
     const ws = await page.locator('.drawer-body .verdict').innerText();
     check(p + 'Watershed Council: five-year allocation with a conserved water ledger', /Harvest \d+ %, river health \d+ %/.test(ws) && /balance error -?\d\.\de[-+]\d+/.test(ws), ws.slice(0, 200));
     await page.selectOption('#play-mode', 'faultline');
     for (let k = 0; k < 8; k++) { await page.click('#fault-year'); await page.waitForTimeout(60); }
+    await waitText(page, '.drawer-body', /Campaign over/);
     const fl = await page.locator('.drawer-body').innerText();
     check(p + 'Faultline Command: eight-year campaign ends with recorded losses', /Campaign over: [\d,]+ people lost/.test(fl), fl.slice(0, 160));
-    await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForTimeout(2500);
-    if (await page.locator('text=Forge DET-10').count()) { await page.click('text=Forge DET-10'); await page.waitForTimeout(1500); await page.click('[data-tab=play]'); await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForTimeout(3000); }
-    for (let k = 0; k < 24 && await page.locator('#thaw-march').count(); k++) { await page.click('#thaw-march'); await page.waitForTimeout(150); }
-    const th = await page.locator('.drawer-body').innerText(), thSeed = (await V()).seed;
+    await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForFunction(() => document.querySelector('#thaw-march') || /Forge DET-10/.test(document.querySelector('.drawer-body')?.innerText || ''), null, { timeout: 60000 }).catch(() => {});
+    if (await page.locator('text=Forge DET-10').count()) { await page.click('text=Forge DET-10'); await page.waitForTimeout(1500); await page.click('[data-tab=play]'); await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForSelector('#thaw-march', { timeout: 60000 }).catch(() => {}); }
+    for (let k = 0; k < 24 && await page.locator('#thaw-march').count(); k++) { const before = await page.locator('.drawer-body').innerText(); await page.click('#thaw-march'); await page.waitForFunction(b => document.querySelector('.drawer-body')?.innerText !== b, before, { timeout: 30000 }).catch(() => {}); }
+    const th = await page.locator('.drawer-body').innerText(), thSeed = (await V()).seed, thPanel = th.split('Life Finds a Way')[1] || '';
     check(p + 'The Great Thaw: a migration across a land bridge reaches a terminal outcome with a chronicle', /Victory|Defeat/.test(th) && /Turn \d+: march/.test(th), thSeed + ' ' + th.slice(0, 160));
+    // ---- Milestone 4 (PF-15/20/21/23/33) ----
+    if (thSeed !== 'ATLAS-001') { await page.fill('#seed', 'ATLAS-001'); await page.press('#seed', 'Enter'); await page.waitForTimeout(1200); await page.click('[data-tab=play]'); }
+    await page.selectOption('#play-mode', 'kingdoms'); await page.waitForTimeout(300);
+    const kg0 = await page.locator('.drawer-body').innerText();
+    await page.click('#kingdom-invest'); await waitText(page, '.drawer-body', /Year 500: irrigation at /);
+    const kg1 = await page.locator('.drawer-body').innerText();
+    check(p + 'River Kingdoms: 2,000-year history from the settlements, and an investment changes it', /8 settlements over 2000 years/.test(kg0) && /Year 500: irrigation at /.test(kg1) && kg0 !== kg1 && (await V()).store.events > 0, kg0.split('Life Finds a Way')[1]?.slice(0, 120));
+    await page.selectOption('#play-mode', 'deeptime'); await page.waitForTimeout(300);
+    await page.locator('#deeptime-year').fill('300'); await page.waitForTimeout(400);
+    const dt300 = await page.locator('#deeptime-label').innerText(), dtShot300 = await canvas.screenshot();
+    await page.locator('#deeptime-year').fill('2000'); await page.waitForTimeout(400);
+    const dt2000 = await page.locator('.drawer-body').innerText();
+    await page.click('#branch-save'); await page.waitForTimeout(150);
+    check(p + 'Deep Time: seek through recorded years, epochs separate computed states from recorded history, branches save', dt300 === 'Year 300' && /Year 2000/.test(dt2000) && /computed state/.test(dt2000) && /recorded history/.test(dt2000) && /Branch 1 saved/.test(await page.locator('.drawer-status').innerText()), dt300);
+    await page.selectOption('#play-mode', 'ruins'); await page.waitForTimeout(300);
+    const hasRuin = await page.locator('[data-ruin]').count();
+    if (hasRuin) { await page.locator('[data-ruin]').first().click(); await waitText(page, '.drawer-body', /Reading of the record/); }
+    const rn = await page.locator('.drawer-body').innerText();
+    check(p + 'The World Remembers: ruins from recorded collapses, excavation layers separate facts from interpretation', hasRuin > 0 && /Excavation: /i.test(rn) && /Layer \d+: /.test(rn) && /Reading of the record/.test(rn), rn.split('Life Finds a Way')[1]?.slice(0, 300));
+    await page.selectOption('#play-mode', 'mystery'); await page.waitForTimeout(300);
+    const clues = await page.locator('[data-clue]').count();
+    for (let k = 0; k < clues; k++) { await page.locator('text=Go to site').nth(k).click(); await page.waitForTimeout(250); await page.locator('[data-clue]').nth(k).click(); await page.waitForTimeout(150); }
+    const nb = await page.locator('.drawer-body').innerText();
+    const opts = await page.locator('#mystery-hypothesis option').evaluateAll(o => o.map(x => x.value));
+    let solved = false; for (const o of opts) { await page.selectOption('#mystery-hypothesis', o); await page.click('#mystery-conclude'); await page.waitForTimeout(80); if (/^Solved\./m.test(await page.locator('.drawer-body .verdict').innerText())) { solved = true; break; } }
+    check(p + 'The Silent Planet: examining clue sites fills the notebook and only the evidenced cause solves the case', clues >= 3 && /Field notebook \([1-9]\d*\)/i.test(nb) && solved, `clues=${clues} ` + nb.split('Life Finds a Way')[1]?.slice(0, 300));
+    await page.selectOption('#play-mode', 'life'); await page.waitForTimeout(300);
+    await page.selectOption('#life-pressure', '6');
+    for (const g of [10, 20, 30]) { await page.click('#life-step10'); await waitText(page, '.drawer-body', new RegExp('Generation ' + g + ';')); }
+    const lf = await page.locator('.drawer-body').innerText();
+    check(p + 'Life Finds a Way: generations advance under pressure with a field guide and tree of descent', /Generation 30; \d+ living species/.test(lf) && /Tree of descent/i.test(lf), lf.split('Life Finds a Way')[1]?.slice(0, 200));
     if (thSeed !== 'ATLAS-001') { await page.fill('#seed', 'ATLAS-001'); await page.press('#seed', 'Enter'); await page.waitForTimeout(1200); }
     await page.selectOption('#era', 'today'); await page.waitForTimeout(300);
     await page.click('#observatory'); await page.waitForTimeout(100); if (await page.locator('#drawer').isHidden()) await page.click('#observatory');

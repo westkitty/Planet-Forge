@@ -191,16 +191,16 @@ void main() {
   let markers = null, selectedSettlement = -1;
   const markerMaterial = new THREE.ShaderMaterial({
     uniforms: { uPixelRatio: { value: 1 }, uSelected: { value: -1 } },
-    vertexShader: `attribute float aIndex; uniform float uPixelRatio; uniform float uSelected; varying float vSel;
-void main() { vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0; gl_PointSize = (vSel > 0.5 ? 19.0 : 12.0) * uPixelRatio; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `varying float vSel;
+    vertexShader: `attribute float aIndex; attribute float aState; uniform float uPixelRatio; uniform float uSelected; varying float vSel; varying float vRuin;
+void main() { vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0; vRuin = aState > 0.5 && aState < 1.5 ? 1.0 : 0.0; gl_PointSize = aState > 1.5 ? 0.0 : (vSel > 0.5 ? 19.0 : 12.0) * uPixelRatio; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying float vSel; varying float vRuin;
 void main() {
   float r = length(gl_PointCoord * 2.0 - 1.0);
   float ring = smoothstep(0.62, 0.72, r) * (1.0 - smoothstep(0.86, 1.0, r));
   float dot_ = 1.0 - smoothstep(0.22, 0.32, r);
   float a = max(ring, dot_);
   if (a < 0.02) discard;
-  vec3 col = mix(vec3(1.0, 0.82, 0.5), vec3(1.0, 0.96, 0.82), vSel);
+  vec3 col = mix(mix(vec3(1.0, 0.82, 0.5), vec3(1.0, 0.96, 0.82), vSel), vec3(0.55, 0.55, 0.58), vRuin);
   gl_FragColor = vec4(col, a * (0.85 + 0.15 * vSel));
 }`,
     transparent: true, depthWrite: false
@@ -212,12 +212,19 @@ void main() {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('aIndex', new THREE.BufferAttribute(index, 1));
+    g.setAttribute('aState', new THREE.BufferAttribute(new Float32Array(n), 1)); // 0 inhabited, 1 ruin, 2 not yet founded
     markers = new THREE.Points(g, markerMaterial);
     markers.name = 'pf-settlements';
     markers.renderOrder = 3;
     markers.raycast = () => {};
     globe.add(markers);
     selectSettlement(-1);
+  }
+  /** PF-08 + PF-15/23: light each settlement by its recorded population (0–1) and mark ruins / unfounded sites; null resets. */
+  function setSettlementState(weights, states) {
+    if (!currentGlobe || !currentPlanet) return;
+    const lights = currentGlobe.geometry.getAttribute('aLights'); lights.array.set(settlementLightField(currentPlanet, 2, weights)); lights.needsUpdate = true; // in place: no new GPU buffer
+    const a = markers?.geometry.getAttribute('aState'); if (a) { for (let k = 0; k < a.count; k++) a.setX(k, states ? states[k] : 0); a.needsUpdate = true; }
   }
   function selectSettlement(k) { selectedSettlement = k; markerMaterial.uniforms.uSelected.value = k; }
 
@@ -304,7 +311,7 @@ void main() {
   }
   return {
     radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
-    selectSettlement, clock, sky: starfield,
+    selectSettlement, setSettlementState, clock, sky: starfield,
     get quality() { return profileName; },
     info: () => ({ quality: profileName, pixelRatio: renderer.getPixelRatio(), clouds: !!clouds?.visible, cloudShadows: shared.uCloudShadow.value === 1, ocean: shared.uOceanFx.value === 1, natural: clock.natural, subsolarLon: +clock.subsolarLon.toFixed(2), declination: clock.declination, dayPlaying: clock.playing, selectedSettlement })
   };

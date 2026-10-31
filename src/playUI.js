@@ -7,6 +7,7 @@ import { riversForCouncil, setupBasin, simulateCouncil, RULES as WR } from './ga
 import { setupThaw, newThaw, thawTurn, RULES as TR } from './gameplay/thaw.js';
 import { newCampaign, act, advance, forecastRisk, impactLab, RULES as FR } from './gameplay/faultline.js';
 import { monthName } from './gameplay/core.js';
+import { historyPanels, HISTORY_MODES } from './playHistory.js';
 
 const h = (tag, attrs = {}, ...kids) => {
   const el = document.createElement(tag);
@@ -15,7 +16,8 @@ const h = (tag, attrs = {}, ...kids) => {
   return el;
 };
 const rules = list => h('details', {}, h('summary', {}, 'Rules (gameplay approximations)'), h('ul', {}, list.map(t => h('li', {}, t))));
-export const MODES = { trials: 'Planet Trials', expedition: 'Seasonal expedition', survey: 'Cartographer\'s Oath', watershed: 'Watershed Council', thaw: 'The Great Thaw', faultline: 'Faultline Command' };
+export const MODES_M3 = { trials: 'Planet Trials', expedition: 'Seasonal expedition', survey: 'Cartographer\'s Oath', watershed: 'Watershed Council', thaw: 'The Great Thaw', faultline: 'Faultline Command' };
+export const MODES = { ...MODES_M3, ...HISTORY_MODES };
 
 export function createPlay(app, status) {
   let mode = 'trials', trials = null, trialMsg = {}, exp = { from: -1, to: -1, party: 6, supplies: 300, forced: false, month: 0, fc: null, result: null };
@@ -129,11 +131,13 @@ export function createPlay(app, status) {
         rules(FR.text));
     }
   };
+  const hist = historyPanels(app, h, status, () => rerender());
+  Object.assign(panels, hist.panels);
   function render() {
     const sel = h('select', { 'aria-label': 'Game mode', id: 'play-mode' }, Object.entries(MODES).map(([k, v]) => h('option', { value: k, ...(k === mode ? { selected: '' } : {}) }, v)));
     sel.addEventListener('change', () => { mode = sel.value; rerender(); });
     root = h('div', { class: 'play' }, sel, panels[mode]());
     return root;
   }
-  return { render, reset() { trials = null; trialMsg = {}; exp = { ...exp, from: -1, to: -1, fc: null, result: null }; council = { ...council, river: 0, result: null }; thaw = { setup: undefined, state: null }; fault = null; lab = null; } };
+  return { render, reset() { hist.reset(); trials = null; trialMsg = {}; exp = { ...exp, from: -1, to: -1, fc: null, result: null }; council = { ...council, river: 0, result: null }; thaw = { setup: undefined, state: null }; fault = null; lab = null; } };
 }
