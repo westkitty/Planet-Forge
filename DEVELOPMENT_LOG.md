@@ -93,3 +93,12 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Mobile portrait first showed the band almost entirely off-screen; the galactic plane was re-placed below the view axis at a shallow slope so it appears beside the globe on desktop and under it on phones. Galaxy placement retried forever after that change (1 of 10 placed); fixed with a bounded fallback.
 - Results: `npm test` 48/48; build OK (JS 548.93 kB); smoke 101/101 (10 new sky checks); perf: 5 draws/frame, 21 / 5 / 5 live buffers / textures / programs, zero GPU-object leak over 8 forge cycles and over 12 tier switches. Details: `docs/features/PF-01-galactic-starfield.md`.
 - Not done: merge, deployment, live verification, real-GPU or mobile-hardware measurement.
+
+## 2026-10-31 — Full-program run: PF-01 release, Milestone 1 (PF-02/03/05/06/07/08)
+
+- User authorised the full PF-01…PF-33 program with merge/deploy. PF-01: WebGL context lose/restore verified in the browser (sky pixel-identical); PR verification workflow `.github/workflows/pr-verify.yml` added (tests, build, smoke; no deploy); PR #2 CI run 41222008846 green on b7093cf; merged as 5ca234b; Pages deploy run 41222630943 success.
+- Live verification blocked from the agent container: its network policy refuses westkitty.github.io (CONNECT 403). Added a `live-verify` job to deploy.yml that, after deploy, compares served JS/CSS hashes with the CI build and runs the browser smoke suite against the public URL.
+- Milestone 1 built on top of 5ca234b: `src/quality.js` (measured adaptive tiers), `src/surfaceFields.js` (cloud field from binned precipitation + zonal wind, ocean depth, settlement lights, sun geometry), rewritten `src/presentation.js` (natural-view sun with day clock, twilight, ocean gloss/swell, climate clouds with flow-map drift and shadows, settlement markers and night lights), PF-02 spikes/twinkle in `src/starfield.js`, new console controls (Graphics, Day cycle, Clouds).
+- Defect fixed: recursive raycast could pick the cloud sphere and report a wrong cell on the Biomes view.
+- Repairs during verification: quality windows started at the wrong time (unit test caught it); terminator check initially failed (night side over-lit by fill and bounce lights; dimmed in the natural view); low tier still sampled cloud cover with shadows off (guarded: desktop low 216.7 → 200.0 ms).
+- Results: npm test 61/61; smoke 119/119; perf (SwiftShader) desktop median PF-01 183.4 → M1 high 233.3 / low 200.0 ms; no GPU-object leaks.

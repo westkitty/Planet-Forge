@@ -45,3 +45,32 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+  live-verify:
+    # Post-deploy check against the public site: the served JS/CSS must be byte-identical to this run's build,
+    # then the full browser smoke suite runs against https://westkitty.github.io/Planet-Forge/.
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Wait for the new assets and compare hashes
+        run: |
+          JS=$(cd dist && ls assets/index-*.js); CSS=$(cd dist && ls assets/index-*.css)
+          for i in $(seq 1 40); do curl -sf https://westkitty.github.io/Planet-Forge/ | grep -q "$JS" && break; sleep 15; done
+          curl -sf https://westkitty.github.io/Planet-Forge/ | grep -q "$JS"
+          echo "local  $(sha256sum dist/$JS | cut -c1-64) $JS"; echo "live   $(curl -sf https://westkitty.github.io/Planet-Forge/$JS | sha256sum | cut -c1-64)"
+          [ "$(sha256sum < dist/$JS)" = "$(curl -sf https://westkitty.github.io/Planet-Forge/$JS | sha256sum)" ]
+          [ "$(sha256sum < dist/$CSS)" = "$(curl -sf https://westkitty.github.io/Planet-Forge/$CSS | sha256sum)" ]
+      - name: Browser smoke test against the live site
+        run: node scripts/smoke.mjs https://westkitty.github.io/Planet-Forge/ live-smoke-artifacts
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-smoke-artifacts
+          path: live-smoke-artifacts
+          if-no-files-found: ignore

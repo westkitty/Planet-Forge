@@ -5,6 +5,7 @@ import { RIVER_MIN_M3S, LAKE } from './hydrology.js';
 import { GLACIAL_CELL } from './glaciation.js';
 import './style.css';
 import { createPresentation } from './presentation.js';
+import { createQualityController, deviceCeiling, TIERS } from './quality.js';
 const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt'), eraSelect = document.querySelector('#era');
 let planet, mesh, renderedPlanet = null, annotation = null, zonalRain, coastalMask, disposed = false, glacialMs = null;
 const FREQUENCY = 100; // 10f^2+2 = 100,002 cells
@@ -84,17 +85,18 @@ function makeGlobe() {
     const rotation = mesh?.rotation.clone();
     if (mesh) {
       scene.remove(mesh);
-      mesh.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+      disposeAnnotation();
+      mesh.geometry.dispose(); mesh.material.dispose(); // clouds and markers are owned and reused by the presentation
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(baseMesh.positions.length), 3));
     geometry.setIndex(new THREE.BufferAttribute(baseMesh.triangles, 1));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(baseMesh.positions.length), 3));
     presentation.shapeTerrain(geometry, planet);
-    mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: .015 }));
+    mesh = new THREE.Mesh(geometry, presentation.createGlobeMaterial());
     if (rotation) mesh.rotation.copy(rotation);
     scene.add(mesh);
-    presentation.installClouds(mesh, planet);
+    presentation.installWorld(mesh, planet);
     annotation = null;
     renderedPlanet = planet;
   }
@@ -108,7 +110,7 @@ function makeGlobe() {
   disposeAnnotation();
   if (layer === 'winds') { annotation = windArrows(); mesh.add(annotation); }
   if (layer === 'rivers' || layer === 'basins') { annotation = riverLines(); mesh.add(annotation); }
-  presentation.showClouds(layer === 'biome' && eraSelect.value === 'today');
+  presentation.setView({ natural: layer === 'biome', clouds: layer === 'biome' && eraSelect.value === 'today', season: seasonSelect.value, tilt: planet.tilt });
 }
 // Prevailing-wind arrows for the selected season (annual = mean of January and July), drawn on ~2,500 cells.
 function windArrows() {
@@ -167,7 +169,33 @@ function computeCoasts() {
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
 function generate() { const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
+// ---- PF-03 graphics quality and PF-05/07 sky controls ----
+const graphicsSelect = document.querySelector('#graphics'), dayButton = document.querySelector('#daycycle'), daySpeed = document.querySelector('#dayspeed'), cloudButton = document.querySelector('#clouds'), clockLabel = document.querySelector('#clock');
+const params = new URLSearchParams(location.search), requested = params.get('gfx');
+const ceiling = deviceCeiling({ hardwareConcurrency: navigator.hardwareConcurrency, deviceMemory: navigator.deviceMemory, maxTextureSize: renderer.capabilities.maxTextureSize, coarsePointer: matchMedia('(pointer: coarse)').matches });
+const qualityController = createQualityController({ mode: TIERS.includes(requested) ? requested : 'auto', ceiling, start: matchMedia('(pointer: coarse)').matches || innerWidth < 700 ? 'medium' : ceiling, now: performance.now() });
+graphicsSelect.value = qualityController.state().mode;
+function applyQuality(tier) {
+  if (presentation.applyQuality(tier)) resize();
+  graphicsSelect.options[0].textContent = 'Auto (' + qualityController.tier + ')';
+}
+graphicsSelect.addEventListener('change', () => { const t = qualityController.setMode(graphicsSelect.value, performance.now()); applyQuality(t || qualityController.tier); });
+function syncClock() {
+  const lon = presentation.clock.subsolarLon;
+  clockLabel.textContent = 'Noon ' + Math.abs(Math.round(lon)) + '°' + (lon < 0 ? 'W' : 'E');
+  dayButton.textContent = presentation.clock.playing ? 'Pause' : 'Play';
+  dayButton.setAttribute('aria-pressed', String(presentation.clock.playing));
+}
+dayButton.addEventListener('click', () => { presentation.clock.playing = !presentation.clock.playing; syncClock(); });
+daySpeed.addEventListener('change', () => { presentation.clock.speed = daySpeed.value; });
+cloudButton.addEventListener('click', () => { const on = cloudButton.getAttribute('aria-pressed') !== 'true'; cloudButton.setAttribute('aria-pressed', String(on)); presentation.setCloudsWanted(on); });
+setInterval(() => { if (presentation.clock.playing) syncClock(); }, 500);
+applyQuality(qualityController.tier);
 generate();
+syncClock();
+window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state() }),
+  settlementScreen: () => planet.settlements.map((t, k) => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * t.cell], P[3 * t.cell + 1], P[3 * t.cell + 2]).multiplyScalar(presentation.radius(planet.elevation[t.cell])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { k, name: t.name, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; }), viewLongitude: () => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); return Math.atan2(d.z, d.x) * 180 / Math.PI; },
+  setSubsolarLongitude: lon => { presentation.clock.subsolarLon = lon; syncClock(); return presentation.info(); } };
 // Test/diagnostic handle for the sky's quality tiers (PF-01); the world model is not reachable from here.
 window.__planetForgeSky = { info: presentation.sky.info, setQuality: q => { presentation.sky.setQuality(q); return presentation.sky.info(); } };
 document.querySelector('#generate').addEventListener('click', generate); seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); }); layerSelect.addEventListener('change', makeGlobe); seasonSelect.addEventListener('change', makeGlobe); tiltSelect.addEventListener('change', generate); eraSelect.addEventListener('change', makeGlobe);
@@ -230,11 +258,16 @@ canvas.addEventListener('pointercancel', e => {
 });
 function inspectAt(clientX, clientY) {
   const r = canvas.getBoundingClientRect(); const mouse = new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
-  const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera); const hit = ray.intersectObject(mesh)[0]; if (!hit) return;
+  const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera); const hit = ray.intersectObject(mesh, false)[0]; if (!hit) return; // the globe only: never clouds, markers or overlays
   const local = mesh.worldToLocal(hit.point.clone()); const P = baseMesh.positions; let best = hit.face.a, bd = Infinity;
   for (const k of [hit.face.a, hit.face.b, hit.face.c]) { const d = (P[3 * k] - local.x) ** 2 + (P[3 * k + 1] - local.y) ** 2 + (P[3 * k + 2] - local.z) ** 2; if (d < bd) { bd = d; best = k; } }
   const c = cellInfo(planet, best), p = planet.plates[c.plate];
-  document.querySelector('#inspect').textContent = c.lat + '° lat, ' + c.lon + '° lon · ' + c.biome + ' · Köppen ' + c.koppen + ' · ' + c.elevation + ' m · ' + c.temperature + ' °C (Jan ' + c.temperatureJan + ', Jul ' + c.temperatureJul + ') · ' + c.rainfall + ' mm/yr · plate ' + c.plate + ' (' + c.crust + ', ' + p.speedCmYr + ' cm/yr)' + (c.boundary !== 'none' ? ' · ' + c.boundary + ' boundary' : '') + (c.seafloorAgeMyr !== undefined ? ' · seafloor ~' + c.seafloorAgeMyr + ' Myr' : '') + (c.dischargeM3s !== undefined ? ' · ' + (c.lake ? c.lake + ' · ' : '') + 'flow ' + c.dischargeM3s.toLocaleString('en-US') + ' m³/s · runoff ' + c.runoffMm + ' mm/yr · basin ' + c.basin : '') + (c.glacial && glacialView() ? ' · ice age: ' + c.glacial + (c.glacialIceM ? ' ' + c.glacialIceM.toLocaleString('en-US') + ' m thick' : '') : '');
+  // PF-08: a click within 2.5° of a generated settlement selects it and reports its recorded site data.
+  let site = -1, sd = Math.cos(2.5 * Math.PI / 180);
+  planet.settlements.forEach((t, k) => { const d = P[3 * best] * P[3 * t.cell] + P[3 * best + 1] * P[3 * t.cell + 1] + P[3 * best + 2] * P[3 * t.cell + 2]; if (d > sd) { sd = d; site = k; } });
+  presentation.selectSettlement(site);
+  const t = planet.settlements[site];
+  document.querySelector('#inspect').textContent = (t ? 'Settlement ' + t.name + ' (founded year ' + t.founded + ', ' + t.water + ', ' + t.setting + ', ' + t.climate + ' climate, ' + t.lat + '°, ' + t.lon + '°) · ' : '') + c.lat + '° lat, ' + c.lon + '° lon · ' + c.biome + ' · Köppen ' + c.koppen + ' · ' + c.elevation + ' m · ' + c.temperature + ' °C (Jan ' + c.temperatureJan + ', Jul ' + c.temperatureJul + ') · ' + c.rainfall + ' mm/yr · plate ' + c.plate + ' (' + c.crust + ', ' + p.speedCmYr + ' cm/yr)' + (c.boundary !== 'none' ? ' · ' + c.boundary + ' boundary' : '') + (c.seafloorAgeMyr !== undefined ? ' · seafloor ~' + c.seafloorAgeMyr + ' Myr' : '') + (c.dischargeM3s !== undefined ? ' · ' + (c.lake ? c.lake + ' · ' : '') + 'flow ' + c.dischargeM3s.toLocaleString('en-US') + ' m³/s · runoff ' + c.runoffMm + ' mm/yr · basin ' + c.basin : '') + (c.glacial && glacialView() ? ' · ice age: ' + c.glacial + (c.glacialIceM ? ' ' + c.glacialIceM.toLocaleString('en-US') + ' m thick' : '') : '');
 }
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');
 canvas.addEventListener('keydown', e => { if (!mesh) return; const k = e.key; if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
@@ -250,24 +283,25 @@ function resize() {
 const resizeObserver = new ResizeObserver(resize);
 resizeObserver.observe(root);
 resize();
-let lastFrame = performance.now();
+let lastFrame = performance.now(), prevFrame = 0;
 function animate(now = performance.now()) {
   if (disposed) return;
   requestAnimationFrame(animate);
   const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
-  if (!drag && mesh && now - lastInteraction > 1500 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    mesh.rotation.y += dt * .017;
-    presentation.advance(dt);
-  }
+  const motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!drag && mesh && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
+  presentation.tick(dt, motion, mesh);
   renderer.render(scene, camera);
+  const nextTier = qualityController.sample(now - prevFrame, now); prevFrame = now;
+  if (nextTier) applyQuality(nextTier);
   presentation.afterFirstFrame();
 }
 animate();
 window.addEventListener('pagehide', () => {
   disposed = true;
   resizeObserver.disconnect();
-  mesh?.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+  disposeAnnotation(); mesh?.geometry.dispose(); mesh?.material.dispose();
   presentation.dispose();
   renderer.dispose();
 }, { once: true });
