@@ -243,9 +243,10 @@ void main() {
   function setCloudsWanted(v) { cloudsWanted = v; syncCloudVisibility(); }
 
   /** Per-frame update from the single animation loop. `motion` is false under reduced motion. */
-  function tick(dt, motion, globe) {
+  function tick(dt, motion, globe, clockDt = dt) {
     if (motion) { shared.uTime.value += dt; shared.uCloudTime.value += dt; starfield.tick(dt); }
-    if (clock.playing) clock.subsolarLon = ((clock.subsolarLon - 360 * dt / DAY_SPEEDS[clock.speed]) % 360 + 540) % 360 - 180;
+    // the day clock follows real elapsed time (capped), so a slow frame rate does not slow the day
+    if (clock.playing) clock.subsolarLon = ((clock.subsolarLon - 360 * clockDt / DAY_SPEEDS[clock.speed]) % 360 + 540) % 360 - 180;
     if (globe) {
       if (clock.natural) {
         sunLocal.fromArray(sunDirection(clock.subsolarLon, clock.declination));
@@ -268,6 +269,8 @@ void main() {
     camera.position.z = base * zoomScale;
     starfield.follow(camera);
   }
+  const getZoom = () => zoomScale;
+  function setZoom(z, width, height) { zoomScale = THREE.MathUtils.clamp(z, 0.81, 2.4); fitCamera(width, height); }
   function zoom(direction, width, height) {
     zoomScale = THREE.MathUtils.clamp(zoomScale + direction * 0.085, 0.81, 2.4);
     fitCamera(width, height);
@@ -300,7 +303,7 @@ void main() {
     markers?.geometry.dispose(); markerMaterial.dispose();
   }
   return {
-    radius, shapeTerrain, createGlobeMaterial, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
+    radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
     selectSettlement, clock, sky: starfield,
     get quality() { return profileName; },
     info: () => ({ quality: profileName, pixelRatio: renderer.getPixelRatio(), clouds: !!clouds?.visible, cloudShadows: shared.uCloudShadow.value === 1, ocean: shared.uOceanFx.value === 1, natural: clock.natural, subsolarLon: +clock.subsolarLon.toFixed(2), declination: clock.declination, dayPlaying: clock.playing, selectedSettlement })
