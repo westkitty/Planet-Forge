@@ -1,6 +1,6 @@
 # Planet Forge
 
-A seeded procedural planet viewer and living atlas. This repository is being bootstrapped in small verifiable stages; advanced tectonic, climate, hydrologic and historical simulation fidelity is **not yet implemented**.
+A seeded procedural planet viewer and living atlas. This repository is being bootstrapped in small verifiable stages; the planet is a 100,002-cell geodesic mesh with seeded rigid-plate tectonics (model `tectonic-0.2`); climate, hydrology and history are still conceptual or not yet implemented.
 
 ## Run locally
 
@@ -13,7 +13,10 @@ npm run dev
 
 ## Architecture
 
-- `src/world.js` deterministic world model
+- `src/planet.js` deterministic tectonic world model (geodesic mesh, plates, boundaries, relief, climate proxies)
+- `src/world.js` original prototype-0.1 model (kept for reference; PRNG and seed hash reused)
+- `docs/features/` feature records with assumptions, limitations and sources
+- `DEVELOPMENT_LOG.md` append-only cycle log
 - `src/main.js` Three.js globe, controls and data inspection
 - `src/style.css` responsive presentation
 - `.github/workflows/deploy.yml` Pages CI/CD (activate Pages > GitHub Actions in repository Settings)

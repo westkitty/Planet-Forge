@@ -104,7 +104,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
 
   // Layer selection
   let prev = afterZoom;
-  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'biome']) {
+  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'biome']) {
     await page.selectOption('#layer', layer); await page.waitForTimeout(400);
     const s = await canvas.screenshot();
     fs.writeFileSync(path.join(outDir, `${vp.name}-3-layer-${layer}.png`), s);
@@ -118,6 +118,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   await page.waitForTimeout(200);
   const insp = await page.locator('#inspect').innerText();
   check(p + 'cell inspection on click', /° lat, .*° lon · .* m · .* °C/.test(insp), insp);
+  check(p + 'inspection reports tectonic plate', /plate \d+ \((continental|oceanic), [\d.]+ cm\/yr\)/.test(insp), insp);
   check(p + 'layer change keeps globe orientation', !/^0° lat, 90° lon/.test(insp), insp);
 
   // Keyboard globe control
@@ -155,6 +156,8 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const order = [];
   for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
   check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
+  const perf = await page.evaluate(() => window.__planetForge);
+  check(p + 'tectonic model loaded with ~100k cells', perf && perf.version === 'tectonic-0.2' && perf.cells === 100002, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 

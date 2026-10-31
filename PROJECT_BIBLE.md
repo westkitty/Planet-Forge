@@ -21,3 +21,9 @@ GitHub Pages is only a build/deploy target. Continuous AI development is a separ
 
 ## Editing rules
 Preserve functional baseline. Build/test before merge. Record all algorithm changes to world version. Never silently overwrite history or claim verification without evidence.
+
+## 2026-10-31 — World model tectonic-0.2 (append-only)
+
+- Roadmap item 2 started: the planet is now a geodesic mesh of 100,002 cells (frequency 100) with 9–14 seeded rigid plates moving about Euler poles; relief derives from boundary type (convergent, divergent, transform) and a GDH1 seafloor age-depth model. Details, assumptions and sources: `docs/features/F-0002-tectonic-plates.md`.
+- World version string is `tectonic-0.2`. `prototype-0.1` (`src/world.js`) is retained for reference and its tests still run.
+- Still conceptual: climate, rainfall and biomes; plates are a kinematic snapshot, not time-integrated.
