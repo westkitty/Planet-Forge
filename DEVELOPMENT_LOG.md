@@ -26,3 +26,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - First implementation passed tests; the main-stem walk stopped too early (37 m³/s cut-off), lowered to 10 m³/s. Runoff ratio and endorheic share are above Earth's and documented, not tuned.
 - Deployed: 5d8ddae on main, Actions run 41194299227 success, live asset hashes match local build, live smoke 78/78. F-0004 COMPLETE.
 - Branch push, the local fast-forward merge and the main push each still required an approval card; commits did not.
+
+## 2026-10-31 07:06 ET — cycle 4: F-0005 ice-age glacial maximum (checkpointed, not shipped)
+
+- Started from main at c08909f; no wip checkpoint existed. Seven candidates evaluated (glacial maximum 9, stream-power erosion 8, ocean gyres 8, NPP/ecology 7, seasonal-cycle correction 5, arid-bias recalibration 4 rejected, supercontinent cycle 10 not achievable); chose the glacial maximum.
+- Built `src/glaciation.js` on `wip/glaciation` (1ff56c2): obliquity-minimum + glacial-CO2 forcing through the planet's EBM, PDD mass balance, Nye thickness, ice-albedo and height–mass-balance feedbacks, sea-level fall, exposed shelves, land bridges. Tests 30/30.
+- First runs gave almost no ice (0.07–1.12% of the surface, 0 land bridges on 20 seeds). Adding the height–mass-balance feedback and a λ = 0.8 K/(W m⁻²) sensitivity changed little. Diagnosis: climate-0.3's undamped seasonal cycle gives 46–55 °C high-latitude summers. A heat-capacity damping experiment fixed the summers but still left ≤ 2.5% ice; it was reverted because it rewrites the whole climate without verification.
+- Not deployed; production stays at hydro-0.4. Checkpoint recorded in OPERATIONAL_STATE.md; details in `docs/features/F-0005-glaciation.md` on the branch.
