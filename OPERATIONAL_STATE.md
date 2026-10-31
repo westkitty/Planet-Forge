@@ -65,3 +65,13 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Why it stopped: the feature does not reach WOW 9 on the current climate. On 20 seeds glacial ice covers 0.07–1.12% of the surface, the sea falls 0.3–11.9 m and no land bridge forms. Cause found in climate-0.3: the EBM seasonal anomaly has no heat capacity, so high-latitude land has 46–55 °C warmest months (DET-02), and no snow survives. A test with North & Coakley heat-capacity damping (C = 1e8 J m⁻² K⁻¹) gave Earth-like 65° summers and 2–4× more ice, but still ≤ 2.5% ice and ≤ 28 m sea fall (high-latitude precipitation is only 20–400 mm/yr), and it changes every climate output, so it was reverted, not shipped.
 - Full diagnosis, candidate table, experiment numbers and sources: `docs/features/F-0005-glaciation.md` on `wip/glaciation`.
 - Next: (1) verified seasonal-cycle correction in the climate model as its own feature (tests, seed report, smoke, deploy); (2) look at high-latitude moisture supply; (3) resume `wip/glaciation` (globe layer, export, smoke, seed report) and ship if it then reaches the bar.
+
+## 2026-10-31 07:20–07:41 ET — cycle 5: F-0006 season-0.5, COMPLETE (append-only log entry)
+
+- Started manually by the user. Branch `feat/seasonal-damping` from fd3b2f7; commit 126b00c fast-forwarded onto main. Local: tests 31/31, seed report 20/20 reproducible/distinct (653–900 ms/seed in Node), smoke 78/78 against vite preview.
+- Actions run 41197502470 on 126b00c: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-ByTq7bey.js` and `assets/index-DHmw5VkL.css`, byte-identical (sha256) to the local build of 126b00c. `scripts/smoke.mjs` against the live URL: 78/78 at 1280×800 and 390×844, zero console errors; live page reports season-0.5 with 100,002 cells.
+- Approvals: the feature-branch push, the local fast-forward merge and the main push all ran without an approval card.
+- Before/after (20 seeds): warmest month of land at 60–75° 37.4 → 13.7 °C, ocean range at 50–60° 19.3 → 7.9 K, polar annual mean −2.7 → −5.1 °C, Köppen B 62.0 → 59.2% (still ≈2× Earth), runoff ratio 0.61 → 0.65 (worse), endorheic land 42.4 → 39.3%. Full tables: `docs/features/F-0006-seasonal-damping.md`.
+- Feature numbering: F-0005 stays reserved for the in-progress glaciation on `wip/glaciation`.
+- Next: resume F-0005 on top of season-0.5 (the orbital signal must use the damped seasonal response); then the arid bias (moisture supply/transport) as its own feature.
