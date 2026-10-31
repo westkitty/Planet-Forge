@@ -88,3 +88,10 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 
 - Branch `feat/eddy-moisture` from fc8f80b. Local: tests 35/35, seed report 20/20 reproducible/distinct (638–847 ms/seed), smoke 78/78 against vite preview. Deployment status follows in the next entry.
 - 20 seeds: Köppen B 59.2 → 54.7% of land, runoff ratio 0.65 → 0.61, endorheic land 39.3 → 31.4%, precipitation poleward of 70° 74 → 104 mm/yr, land snowfall ≥ 60° 155 → 356 mm/yr, Köppen E and Ice biome unchanged (temperature-only). Full tables: `docs/features/F-0007-eddy-moisture.md`.
+
+## 2026-10-31 08:09 ET — cycle 6: F-0007 eddy-0.6, COMPLETE (append-only log entry)
+
+- Commit b7e95a1 on `feat/eddy-moisture`, fast-forwarded onto main and pushed (no approval card for either push or the merge).
+- Actions run 41199283820 on b7e95a1: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-DrGE_5jP.js` and `assets/index-DHmw5VkL.css`, byte-identical (sha256) to the local build of b7e95a1. `scripts/smoke.mjs` against the live URL: 78/78 at 1280×800 and 390×844, zero console errors; live page reports eddy-0.6 with 100,002 cells (in-browser generate + render 959–998 ms for ATLAS-001).
+- Next: resume F-0005 on `wip/glaciation-season` on top of eddy-0.6 (needs the ~1 s budget), then the remaining arid bias (winds/advection) as its own feature.
