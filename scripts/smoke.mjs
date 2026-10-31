@@ -64,6 +64,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   check(p + 'planet viewing area is at least 85% of screen', footprint.viewer >= 0.85, JSON.stringify(footprint));
 
   const shot0 = await canvas.screenshot();
+  const skyInitial = await page.screenshot({ clip: vp.name === 'desktop' ? { x: box.x, y: box.y, width: 260, height: 180 } : { x: box.x, y: box.y + box.height - 95, width: box.width, height: 90 } });
   fs.writeFileSync(path.join(outDir, `${vp.name}-0-initial.png`), shot0);
   const st = await canvasStats(page, shot0);
   check(p + 'globe renders (non-blank canvas)', st.colours > 40, `distinct colours=${st.colours}, meanLum=${st.meanLum.toFixed(1)}`);
@@ -103,6 +104,21 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   fs.writeFileSync(path.join(outDir, `${vp.name}-1-rotated.png`), afterRot);
   const rot = await diff(page, before, afterRot);
   check(p + 'drag rotates globe', rot > 0.02, `changed fraction=${rot.toFixed(3)}`);
+
+  // PF-01 starfield: a patch of sky clear of the globe must be populated and must not move when the globe rotates,
+  // the world is re-forged, or the atlas layer changes (stars are in the fixed sky frame, not the planet's frame).
+  const skyClip = vp.name === 'desktop' ? { x: box.x, y: box.y, width: 260, height: 180 } : { x: box.x, y: box.y + box.height - 95, width: box.width, height: 90 };
+  const skyAfterRot = await page.screenshot({ clip: skyClip });
+  const skyStats = await canvasStats(page, skyAfterRot);
+  check(p + 'starfield renders in open sky', skyStats.colours > 25, `distinct colours=${skyStats.colours}, meanLum=${skyStats.meanLum.toFixed(1)}`);
+  const skyMove = await diff(page, skyInitial, skyAfterRot, 12);
+  check(p + 'sky is unchanged by re-forging and rotating the globe', skyMove < 0.002, `changed fraction=${skyMove.toFixed(4)}`);
+  await page.selectOption('#layer', 'plates'); await page.waitForTimeout(300);
+  const skyLayer = await diff(page, skyInitial, await page.screenshot({ clip: skyClip }), 12);
+  await page.selectOption('#layer', 'biome'); await page.waitForTimeout(300);
+  check(p + 'sky is unchanged by layer switching', skyLayer < 0.002, `changed fraction=${skyLayer.toFixed(4)}`);
+  const sky0 = await page.evaluate(() => window.__planetForge.sky);
+  check(p + 'sky catalogue is the fixed seeded catalogue with galaxies and no shader fallback', sky0 && sky0.seed === 'PLANET-FORGE-SKY-1' && sky0.signature === 'b0d0aa15' && sky0.catalogue === 14000 && sky0.galaxies === 10 && sky0.fallback === false && sky0.drawn >= 4500, JSON.stringify(sky0));
 
   // Zoom by wheel
   await page.mouse.move(cx, cy);
@@ -227,6 +243,26 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 
+  // PF-01 quality tiers: each tier renders, keeps the same catalogue, and the auto tier is restored afterwards.
+  const tiers = [];
+  for (const q of ['low', 'medium', 'high']) {
+    const info = await page.evaluate(q => window.__planetForgeSky.setQuality(q), q); await page.waitForTimeout(250);
+    const st = await canvasStats(page, await canvas.screenshot());
+    tiers.push(`${q}:${info.drawn}/${info.limitingMagnitude}/${st.colours}`);
+    if (!(info.quality === q && info.signature === sky0.signature && !info.fallback && st.colours > 40)) tiers.push('FAILED');
+  }
+  await page.evaluate(q => window.__planetForgeSky.setQuality(q), sky0.quality);
+  check(p + 'sky quality tiers low/medium/high render with one catalogue', !tiers.includes('FAILED'), tiers.join(' '));
+  // PF-01: after WebGL context loss and restore the scene redraws and the re-baked sky matches the original.
+  if (vp.name === 'desktop') {
+    const skyBeforeLoss = await page.screenshot({ clip: skyClip });
+    await page.evaluate(() => { window.__lc = document.querySelector('#viewer canvas').getContext('webgl2').getExtension('WEBGL_lose_context'); window.__lc.loseContext(); });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => window.__lc.restoreContext()); await page.waitForTimeout(2000);
+    const restored = await canvasStats(page, await canvas.screenshot());
+    const skyRestore = await diff(page, skyBeforeLoss, await page.screenshot({ clip: skyClip }), 12);
+    check(p + 'WebGL context restore redraws the globe and re-bakes the same sky', restored.colours > 40 && skyRestore < 0.002, `colours=${restored.colours}, sky changed fraction=${skyRestore.toFixed(4)}`);
+  }
   check(p + 'zero console/page/network errors', errors.length === 0, errors.join(' ; '));
   await context.close();
 }

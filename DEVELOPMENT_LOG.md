@@ -81,3 +81,15 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - The latest production build succeeded; static syntax, zero-diff-error, keyboard focus, responsive overflow, JSON export and no browser console/network failure were checked.
 - Scope audit: original HTML IDs and selector option values are all preserved; no scientific simulation source files were modified; no new dependencies or external runtime textures. Initial verification failures were corrected and retested successfully.
 - Visual/performance limits: stylized terrain, lighting and atmospheric art direction remain non-physically calibrated; no verified device-specific FPS or thermals. GitHub feature branch / PR will be delivered separately; no production main deployment was performed by the local implementation phase.
+
+
+## 2026-10-31 — PF-01 definitive galactic starfield (user-authorised; feature branch, not merged)
+
+- Repository verified: westkitty/Planet-Forge, origin https://github.com/westkitty/Planet-Forge, branch `claude/determined-mayer-wvolun`, baseline HEAD d26a030 (main), clean tree. The paused hourly executor was not touched.
+- Baseline (cloud container, Node 24, headless Chrome + SwiftShader): `npm test` 40/40; build OK (JS 538.63 kB); smoke 91/91; new `scripts/perf.mjs` desktop median frame 166.7 ms, 4 draws/frame, 15 buffers / 4 textures / 4 programs, no leak over 8 forge cycles.
+- Reference sources read at Event-Horizon-Forge 289bdfc (`src/render/Starfield.ts`) and World_Machine cc1eb5f (`src/render/shaders.ts`, `src/render/PlanetView.ts`). EHF declares `UNLICENSED` and World Machine declares no licence; the owner confirmed in-session that both are theirs and the code may be used.
+- Added `src/starfield.js` (deterministic 14,000-star catalogue, galactic band, dust, 10 distant galaxies, quality tiers, shader fallback, disposal), replacing the 1,100-point field in `src/presentation.js`. The sky is constant on screen, so the procedural band shader is baked once into a cube render target.
+- First version evaluated the band shader per pixel per frame: desktop median 316.6 ms (+90 %) in SwiftShader. A trivial full-screen dome measured 183.3 ms, so the shader math, not the pass, was the cost; early-out alone gave 283.3 ms. The cube bake gave 183.4 ms desktop / 150.0 ms mobile (baseline 166.7 / 133.4–149.9). Kept the bake.
+- Mobile portrait first showed the band almost entirely off-screen; the galactic plane was re-placed below the view axis at a shallow slope so it appears beside the globe on desktop and under it on phones. Galaxy placement retried forever after that change (1 of 10 placed); fixed with a bounded fallback.
+- Results: `npm test` 48/48; build OK (JS 548.93 kB); smoke 101/101 (10 new sky checks); perf: 5 draws/frame, 21 / 5 / 5 live buffers / textures / programs, zero GPU-object leak over 8 forge cycles and over 12 tier switches. Details: `docs/features/PF-01-galactic-starfield.md`.
+- Not done: merge, deployment, live verification, real-GPU or mobile-hardware measurement.

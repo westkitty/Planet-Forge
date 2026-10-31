@@ -1,0 +1,46 @@
+# Planet Forge — PF master progress ledger
+
+States: NOT_STARTED · IN_PROGRESS · IMPLEMENTED · TESTED · MERGED · DEPLOYED · LIVE_VERIFIED · BLOCKED.
+LIVE_VERIFIED only after the deployed build was exercised in a real browser. Reconcile against git/GitHub on every start; git evidence wins over this table.
+
+| PF | Feature | Owner layer | Depends on | State | Branch | Commit | PR | Merge | Deploy run | Evidence / open problems |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PF-01 | Definitive galactic starfield | Presentation | — | TESTED | claude/determined-mayer-wvolun | 34ba430 | [#2](https://github.com/westkitty/Planet-Forge/pull/2) | — | — | tests 48/48, smoke 102/102; see docs/features/PF-01-galactic-starfield.md |
+| PF-02 | Spectral stellar identity | Presentation | PF-01 | NOT_STARTED | — | — | — | — | — | — |
+| PF-03 | Adaptive graphics quality | Presentation | PF-01 | NOT_STARTED | — | — | — | — | — | — |
+| PF-04 | Constellation cartography | Celestial/Observatory | PF-01, PF-02, PF-10, PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-05 | Dynamic solar illumination | Presentation | — | NOT_STARTED | — | — | — | — | — | — |
+| PF-06 | Living oceans | Presentation | PF-03, PF-05 | NOT_STARTED | — | — | — | — | — | — |
+| PF-07 | Climate-informed clouds | Presentation | PF-03 | NOT_STARTED | — | — | — | — | — | — |
+| PF-08 | Settlement illumination | Presentation | PF-05 | NOT_STARTED | — | — | — | — | — | — |
+| PF-09 | Cinematic planetary expeditions | Presentation/Observatory | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-10 | Intelligent geographic selection | Observatory | — | NOT_STARTED | — | — | — | — | — | — |
+| PF-11 | Planetary event effects | Presentation | — | NOT_STARTED | — | — | — | — | — | — |
+| PF-12 | The Why Engine | Observatory | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-13 | Saved worlds and experiments | Gameplay | — | NOT_STARTED | — | — | — | — | — | — |
+| PF-14 | The Great Thaw | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-15 | River Kingdoms | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-16 | God of Consequences | Gameplay/Science | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-17 | The Cartographer's Oath | Gameplay | PF-10, PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-18 | Faultline Command | Gameplay | PF-13, PF-11 | NOT_STARTED | — | — | — | — | — | — |
+| PF-19 | First Footfall | Exploration | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-20 | Life Finds a Way | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-21 | The Silent Planet | Gameplay | PF-15, PF-33 | NOT_STARTED | — | — | — | — | — | — |
+| PF-22 | The Planet Trials | Gameplay | PF-10, PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-23 | Deep Time | Gameplay | PF-13, PF-15 | NOT_STARTED | — | — | — | — | — | — |
+| PF-24 | Stellar Foundry | Celestial | — | NOT_STARTED | — | — | — | — | — | — |
+| PF-25 | Eclipse Hunter | Celestial | PF-24 | NOT_STARTED | — | — | — | — | — | — |
+| PF-26 | Orbit Architect | Celestial | PF-24 | NOT_STARTED | — | — | — | — | — | — |
+| PF-27 | Planetary transect | Observatory | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-28 | Seasons as strategy | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-29 | The Watershed Council | Gameplay | PF-13 | NOT_STARTED | — | — | — | — | — | — |
+| PF-30 | The scientific method | Observatory | PF-10, PF-27 | NOT_STARTED | — | — | — | — | — | — |
+| PF-31 | Correlation observatory | Observatory | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-32 | Abyssal Frontier | Exploration | PF-10 | NOT_STARTED | — | — | — | — | — | — |
+| PF-33 | The World Remembers | Gameplay | PF-15 | NOT_STARTED | — | — | — | — | — | — |
+
+## Restart instruction
+
+1. `git fetch origin main` and read this ledger, OPERATIONAL_STATE.md and the tail of DEVELOPMENT_LOG.md.
+2. Reconcile each row with `git log origin/main` and the PR list.
+3. Continue with the first row that is not LIVE_VERIFIED, in the milestone order of the roadmap.

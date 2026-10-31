@@ -133,3 +133,11 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Playwright screenshots visually inspected at desktop and portrait sizes, including real globe, atmosphere and mini-console composition. Actual target mobile GPU frame rates, long-session thermals and hardware-specific quality remain UNVERIFIED; no fabricated FPS uplift claimed.
 - The old 86-check smoke had four assertions failing before this redesign of the test contract; those were updated from measured contrast and corrected keyboard starting focus. Fresh 91-check pass now clean. A temporary smoke failure caused by simultaneous heavy scientific tests was not reproduced in the isolated browser pass.
 - The earlier project's automatic hourly development executor remains PAUSED. Feature deployment/main merge is not implied by this verification; merge and live-site CI deployment must be separately observed.
+
+
+## 2026-10-31 — PF-01 galactic starfield: IMPLEMENTED + VERIFIED locally (append-only)
+
+- Branch `claude/determined-mayer-wvolun` from main d26a030. Production main and the live site are unchanged by this entry.
+- New `src/starfield.js` replaces the old random star background with a deterministic catalogue (sky seed `PLANET-FORGE-SKY-1`, signature `b0d0aa15`), galactic band with dust, distant galaxies, low/medium/high tiers, shader fallback and full disposal. World model `glacial-0.8`, scientific outputs and the export schema are unchanged.
+- Evidence (headless Chrome + SwiftShader): `npm test` 48/48, build OK, smoke 101/101 at 1280×800 and 390×844 (viewer 85.5 % / UI 14.5 %, zero console/network errors), no GPU-object leaks. Desktop median frame interval 166.7 → 183.4 ms in software rendering; real-GPU cost UNVERIFIED.
+- State: IMPLEMENTED, VERIFIED (local). Not REVIEWED, MERGED, DEPLOYED or LIVE-VERIFIED.
