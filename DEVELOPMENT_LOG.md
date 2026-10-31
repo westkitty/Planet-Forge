@@ -64,3 +64,20 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - On-demand getter; interglacial fingerprint identical to main; tests 40/40 (new: EBM linearity, on-demand isolation, mass/sea-level bookkeeping, gazetteer, 20-seed Earth-obliquity bar); seed report 20/20 reproducible and distinct (713–990 ms with the glacial state); local smoke 86/86 (new: era toggle, gazetteer panel, Ice age layer, return to today, export columns, era keyboard reach).
 - Order note: the tests were written alongside the implementation, not strictly before it.
 - 08:40–09:00 ET: merged into main as 462742f; Actions 41202123700 verify + deploy success; live asset hashes match the local build; live smoke 86/86. F-0005 COMPLETE. Then the project was PAUSED by the user (no further work today).
+
+
+## 2026-10-31 — manual visual-finishing request: visual observatory (branch under verification)
+
+- Starting from verified main b9865d6 (glacial-0.8), established feat/planet-visual-finish-20261031 in a separate clean checkout. The user's new explicit request authorized this bounded visual work; the earlier pause of autonomous development stays in force.
+- Replaced the full-height 370 px interface column with a persistent 14.5dvh instrument console. The entire existing control set and scientific readouts remain reachable, with a large 85.5dvh interactive planet viewport on desktop and mobile. Native canvas interaction remains intact.
+- Added reusable presentation module for derived terrain relief, day/night lighting, atmosphere, local procedural clouds and stars; no licensed asset or runtime CDN. Scientific layers intentionally suppress cloud cover. Reused globe buffers for layer changes rather than deleting and reconstructing the world mesh on every selection.
+- Added coastal cartographic emphasis and calibrated the surface palette after inspecting actual desktop and portrait renders. Input refinements include aspect-aware camera framing, low-motion idle behavior, and mobile pinch zoom with accidental-tap suppression.
+- The first browser smoke provided 82/86 checks (two existing assertions per viewport did not match the new UI scroll order or post-tone-mapping season contrast). Updated checks and added a strict UI-area assertion plus mobile pinch regression test. Follow-up proof, final commit and deployment status will be recorded separately.
+
+
+## 2026-10-31 — visual finishing pass: local validation closure
+
+- Science suite PASS 40/40 in isolated serial run (0 fail). Browser smoke PASS 91/91 desktop+mobile at the final source state, including pinch zoom, all current scientific layers and controls; exact UI footprint 14.5% and globe viewport 85.5%.
+- The latest production build succeeded; static syntax, zero-diff-error, keyboard focus, responsive overflow, JSON export and no browser console/network failure were checked.
+- Scope audit: original HTML IDs and selector option values are all preserved; no scientific simulation source files were modified; no new dependencies or external runtime textures. Initial verification failures were corrected and retested successfully.
+- Visual/performance limits: stylized terrain, lighting and atmospheric art direction remain non-physically calibrated; no verified device-specific FPS or thermals. GitHub feature branch / PR will be delivered separately; no production main deployment was performed by the local implementation phase.

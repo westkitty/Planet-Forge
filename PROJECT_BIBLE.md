@@ -58,3 +58,14 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - Roadmap item 3 continued: each world now has a last glacial maximum, computed on demand. It combines an orbital (obliquity-minimum) and Köhler et al. (2010) glacial forcing through the EBM with frozen albedo, ice sheets from a whole-sheet positive-degree-day budget with accumulation-limited Nye thickness over a 90,000-year build-up, eustatic sea-level fall, exposed shelves, and named land bridges and ice sheets. UI: Era toggle and an Ice age layer; export carries the glacial state. Details, the bar, before/after and sources: `docs/features/F-0005-glaciation.md` (cycle 7 section).
 - World version string is `glacial-0.8`. Interglacial outputs are byte-identical to eddy-0.6 for the same seed.
 - Still conceptual: at Earth's obliquity the 20 test seeds give median 127 m sea fall, 5.3 % ice and 5.4 K cooling. At seeded obliquity the results are bimodal: worlds at ≥ 29° barely glaciate and low-obliquity worlds reach up to 381 m. Today's poles are still warm and dry. One calibrated parameter (build-up steps).
+
+
+## 2026-10-31 — Visual observatory contract (user-directed, additive)
+
+- World model and data remain glacial-0.8; this is a rendering and interface upgrade, not a revision of physics, climate, hydrology, glaciation, seeding, or the JSON schema.
+- The globe is the subject. The persistent control console must use no more than 15% of the viewport area at desktop and mobile sizes; implementation reserves 14.5dvh for a compact bottom console and 85.5dvh for the actual interactive Three.js viewer. Never regain interface space by removing a scientific layer or data capability.
+- Preserve selector IDs and all existing seed, layer, season, tilt, era, random, inspection, river, settlement, chronicle, ice-age, and export paths. Keep the data in a horizontally scrollable atlas readout strip rather than a full-height side panel.
+- Style: restrained planetary observatory. The visual vocabulary is deep ink/navy, directional warm daylight, cooler dark-side bounce, thin upper-atmosphere limb, actual derived terrain relief, subdued coast emphasis, deterministic stars, and sparse atmospheric clouds. Decorative cloud cover is not a scientific climate output, so it only appears on the present-day biome view and must not obscure scientific layers.
+- No remote runtime textures or new dependencies. Preserve low-memory device support through capped device pixel ratio and procedural lightweight geometry. Reuse the globe geometry across layer changes and dispose replacement world/annotation resources.
+- Preserve mouse drag, wheel, globe keyboard navigation, centre inspection, and reduced-motion handling. Touch pinch zoom is added; multi-touch must not trigger an accidental cell inspection.
+- The user explicitly resumed the narrowly scoped visual work after the prior pause. This does not enable the previously paused hourly autonomous feature executor.
