@@ -527,6 +527,16 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const msg = await p2.locator('#boot').innerText();
   check('[boot] without WebGL the page shows a readable reason instead of a blank screen', /could not start/i.test(msg) && /WebGL 2/.test(msg) && /graphics acceleration|hardware/i.test(msg), msg.slice(0, 200));
   await noGl.close();
+  // High-density screens (Retina Mac, phones): the start-up quality step changes the pixel ratio and resizes immediately.
+  for (const [name, opts] of [['Retina desktop (2x)', { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }], ['phone (3x)', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true }]]) {
+    const ctx = await browser.newContext(opts), pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', e => errs.push(e.message));
+    await pg.goto(baseUrl, { waitUntil: 'load' }); // default Auto graphics, as real visitors get it
+    const ok = await pg.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 }).then(() => true, () => false);
+    const cells = await pg.evaluate(() => window.__planetForge?.cells ?? 0), shownErr = await pg.locator('#boot-err').isVisible();
+    check(`[boot] ${name}: the world generates and renders with no start-up error`, ok && cells === 100002 && !shownErr && errs.length === 0, errs.join(' ; ') || (shownErr ? await pg.locator('#boot-err').innerText() : `cells=${cells}`));
+    await ctx.close();
+  }
 }
 { // PF-03 Auto: on this software renderer frames are far over budget, so Auto must step down from measurements.
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
