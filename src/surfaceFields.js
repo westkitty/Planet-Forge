@@ -81,16 +81,17 @@ export function oceanDepthField(planet) {
  * PF-08: per-cell night-light intensity around the generated settlements (cells within 2 mesh rings, falling off
  * with ring distance). No population model exists yet, so every settlement has the same brightness.
  */
-export function settlementLightField(planet, rings = 2) {
+export function settlementLightField(planet, rings = 2, weights = null) {
   const out = new Float32Array(planet.cellCount), { offsets, neighbors } = planet.mesh;
-  for (const s of planet.settlements) {
+  for (const [k, s] of planet.settlements.entries()) {
+    const w = weights ? Math.max(0, Math.min(1, weights[k])) : 1; if (!w) continue; // PF-08/15: brightness follows recorded population when given
     let frontier = [s.cell]; const seen = new Set(frontier);
     for (let r = 0; r <= rings && frontier.length; r++) {
       const next = [];
       for (const c of frontier) {
         // ring falloff with a fixed per-cell jitter so a town reads as scattered lights, not a flat disc
         const jitter = .45 + .55 * (((Math.imul(c + 1, 2654435761) >>> 0) % 997) / 997);
-        if (planet.elevation[c] >= 0) out[c] = Math.max(out[c], (1 - r / (rings + 1)) * (r ? jitter : 1));
+        if (planet.elevation[c] >= 0) out[c] = Math.max(out[c], (1 - r / (rings + 1)) * (r ? jitter : 1) * Math.sqrt(w));
         for (let k = offsets[c]; k < offsets[c + 1]; k++) { const nb = neighbors[k]; if (!seen.has(nb)) { seen.add(nb); next.push(nb); } }
       }
       frontier = next;
