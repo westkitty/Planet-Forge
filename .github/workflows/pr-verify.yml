@@ -1,0 +1,32 @@
+name: Verify pull request
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: pr-verify-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+      - name: Browser smoke test (headless Chrome against vite preview)
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          for i in $(seq 1 30); do curl -sf http://localhost:4173/Planet-Forge/ >/dev/null && break; sleep 1; done
+          node scripts/smoke.mjs http://localhost:4173/Planet-Forge/ smoke-artifacts
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-smoke-artifacts
+          path: smoke-artifacts
+          if-no-files-found: ignore
