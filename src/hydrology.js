@@ -49,7 +49,7 @@ class Heap { // binary min-heap on (key, pushOrder) for deterministic ties
 }
 
 const SYL = ['ar', 'ven', 'tal', 'or', 'ush', 'mir', 'ka', 'dor', 'el', 'sa', 'rin', 'tho', 'va', 'lun', 'es', 'kor', 'an', 'ith', 'ra', 'nos', 'bel', 'yr', 'gal', 'ume'];
-function riverName(h) { let s = ''; const k = 2 + (h % 2); for (let i = 0; i < k; i++) { s += SYL[(h >>> (3 + 5 * i)) % SYL.length]; } return s[0].toUpperCase() + s.slice(1); }
+export function riverName(h) { let s = ''; const k = 2 + (h % 2); for (let i = 0; i < k; i++) { s += SYL[(h >>> (3 + 5 * i)) % SYL.length]; } return s[0].toUpperCase() + s.slice(1); }
 
 /**
  * ctx: { mesh, elevation, lat (deg), spacingKm, cellAreaKm2, climate (from computeClimate), tilt, seedHash }.

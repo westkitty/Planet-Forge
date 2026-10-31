@@ -52,3 +52,14 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Tests 35/35 (new `tests/eddy.test.js`), seed report 20/20 reproducible and distinct at 638–847 ms/seed, local smoke 78/78.
 - 08:01–08:09 ET: b7e95a1 pushed and fast-forwarded to main; Actions 41199283820 verify + deploy success; live asset hashes match the local build; live smoke 78/78. F-0007 COMPLETE.
 - 08:10–08:16 ET: merged `wip/glaciation-season` onto eddy-0.6 as `wip/glaciation-eddy` (42f52ae, glacial-0.7). Ice 0.34–9.02%, sea fall 0.6–141.9 m, 1 land bridge, 776–1028 ms. Better, still not shippable; checkpointed, not deployed.
+
+## 2026-10-31 08:14 ET — cycle 7 (manual, user said "Finish the ice age"): F-0005 glacial maximum finished
+
+- Lock read "released" (cycle 6); no PAUSED/STOPPED. Lock taken as the manual ice-age cycle. Branch `feat/glaciation` from `wip/glaciation-eddy` (42f52ae).
+- Baseline glacial-0.7 on 20 seeds: ice median 1.3 %, sea fall median 4.3 m, 1 seed with a bridge, 739–1,291 ms per world.
+- Attempt 1, EBM re-solved with full Köhler forcing and its own snow/sea-ice albedo: runaway (7 K cooling before ice sheets, 340–800 m sea fall). Rejected.
+- Attempt 2, frozen-albedo linear EBM with explicit sea-ice/vegetation/dust/shelf forcings: cooling 4.2–6.0 K, but sheets still grew one ring per iteration without converging, because of the 620 m margin lift.
+- Attempt 3, whole-sheet budget: equilibrium sheets far too big (up to 25 % ice, 1,180 m). Adding accumulation-limited thickness alone gave thin, very wide sheets. Final: a sheet spreads only once it has built its full profile, within a 90,000-year build-up.
+- Calibration: steps 24/36/40/44/48 at Earth obliquity gave a median fall of 66/100/110/116/127 m; chose 48. At seeded obliquity the results are bimodal (documented).
+- On-demand getter; interglacial fingerprint identical to main; tests 40/40 (new: EBM linearity, on-demand isolation, mass/sea-level bookkeeping, gazetteer, 20-seed Earth-obliquity bar); seed report 20/20 reproducible and distinct (713–990 ms with the glacial state); local smoke 86/86 (new: era toggle, gazetteer panel, Ice age layer, return to today, export columns, era keyboard reach).
+- Order note: the tests were written alongside the implementation, not strictly before it.

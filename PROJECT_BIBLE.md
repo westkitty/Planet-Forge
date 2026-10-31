@@ -52,3 +52,9 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - Roadmap item 3 continued: water vapour is now also carried poleward by a conceptual eddy flux, a down-gradient diffusion of in-transit moisture between 2° latitude bands with D = 1.87 × 10⁶ m² s⁻¹ (Frierson, Held & Zurita-Gotor 2007), on top of the mean-wind advection. Details, before/after statistics, assumptions and sources: `docs/features/F-0007-eddy-moisture.md`.
 - World version string is `eddy-0.6`. Relief and temperatures identical to season-0.5 for the same seed; precipitation, Köppen, biomes, hydrology and settlements change.
 - Still conceptual: arid bias reduced but not fixed (45–78% Köppen B vs ≈30%), runoff ratio 0.43–0.70, little precipitation at 80–90° on low-tilt planets, poles warm at Earth-like tilt.
+
+## 2026-10-31 — World model glacial-0.8 (append-only)
+
+- Roadmap item 3 continued: each world now has a last glacial maximum, computed on demand. It combines an orbital (obliquity-minimum) and Köhler et al. (2010) glacial forcing through the EBM with frozen albedo, ice sheets from a whole-sheet positive-degree-day budget with accumulation-limited Nye thickness over a 90,000-year build-up, eustatic sea-level fall, exposed shelves, and named land bridges and ice sheets. UI: Era toggle and an Ice age layer; export carries the glacial state. Details, the bar, before/after and sources: `docs/features/F-0005-glaciation.md` (cycle 7 section).
+- World version string is `glacial-0.8`. Interglacial outputs are byte-identical to eddy-0.6 for the same seed.
+- Still conceptual: at Earth's obliquity the 20 test seeds give median 127 m sea fall, 5.3 % ice and 5.4 K cooling. At seeded obliquity the results are bimodal: worlds at ≥ 29° barely glaciate and low-obliquity worlds reach up to 381 m. Today's poles are still warm and dry. One calibrated parameter (build-up steps).

@@ -1,4 +1,4 @@
-// Planet Forge world model (version eddy-0.6: tectonic-0.2 relief + climate-0.3 circulation with season-0.5 heat-capacity-damped seasons and eddy-0.6 poleward eddy moisture transport + hydro-0.4 rivers, lakes, basins).
+// Planet Forge world model (version glacial-0.8: tectonic-0.2 relief + climate-0.3 circulation with season-0.5 heat-capacity-damped seasons and eddy-0.6 poleward eddy moisture transport + hydro-0.4 rivers, lakes, basins + glacial-0.8 last glacial maximum, computed on demand).
 //
 // Conceptual approximation, not a geodynamic simulation. The planet is a
 // geodesic cell mesh (10f^2+2 cells); plates grow from seeded nuclei, each
@@ -9,9 +9,10 @@
 import { hashSeed, rng } from './world.js';
 import { computeClimate, BIOMES, KOPPEN } from './climate.js';
 import { computeHydrology, RIVER_MIN_M3S, LAKE } from './hydrology.js';
+import { computeGlaciation, GLACIAL_CELL } from './glaciation.js';
 
 export { BIOMES, KOPPEN };
-export const MODEL_VERSION = 'eddy-0.6';
+export const MODEL_VERSION = 'glacial-0.8';
 export const LAKE_TYPES = ['none', 'fresh lake', 'salt lake', 'salt flat'];
 export const EARTH_RADIUS_KM = 6371;
 export const BOUNDARY = ['none', 'convergent', 'divergent', 'transform'];
@@ -256,6 +257,9 @@ export function createPlanet(seed, opts = {}) {
   // 8. Hydrology: runoff, Priority-Flood drainage, rivers, lakes with water balance, basins.
   const cellAreaKm2 = 4 * Math.PI * EARTH_RADIUS_KM ** 2 / n;
   const hydro = computeHydrology({ mesh, elevation, lat, climate, tilt, spacingKm, cellAreaKm2, seedHash: s32 });
+  // 8b. Glacial maximum: orbital + CO2 forcing, ice-sheet mass balance and albedo feedback, sea-level fall, land bridges.
+  // Computed on demand (first read of planet.glaciation) so the default interglacial world is not slowed down.
+  const glacialCtx = { mesh, elevation, lat, climate, tilt, spacingKm, cellAreaKm2, seedHash: s32 }; let glacialCache = null;
   const riverOfBasin = new Map(hydro.rivers.map(r => [hydro.basin[r.mouth], r]));
   // fresh water within one cell: a river (discharge >= threshold) or a fresh lake
   const waterAt = i => { let best = null; for (const j of [i, ...N.subarray(O[i], O[i + 1])]) { if (hydro.lake[j] === LAKE.fresh) return 'lake'; if (hydro.discharge[j] >= RIVER_MIN_M3S / 3 && !best) best = 'river'; } return best; };
@@ -278,10 +282,17 @@ export function createPlanet(seed, opts = {}) {
   }
   const timeline = settlements.map(t => ({ year: t.founded, event: `${t.name} founded ${t.water === 'rain-fed' ? '' : t.water + ', '}in ${t.biome.toLowerCase()} (${t.climate} climate, ${t.setting})` })).sort((a, b) => a.year - b.year || a.event.localeCompare(b.event));
 
-  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, tilt, climate, temperature, rainfall, biome, koppen: climate.koppen, hydro, cellAreaKm2, lat, lon, settlements, timeline };
+  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, tilt, climate, temperature, rainfall, biome, koppen: climate.koppen, hydro, cellAreaKm2, lat, lon, settlements, timeline,
+    get glaciation() { return glacialCache ??= computeGlaciation(glacialCtx); }, get glaciationComputed() { return glacialCache !== null; }, get prehistory() { return prehistoryText(this.glaciation); } };
+}
+
+function prehistoryText(g) {
+  const s = g.stats;
+  return `Last glacial maximum: obliquity fell to ${s.obliquityMinDeg}° and CO2 to 190 ppm; the world cooled ${s.globalCoolingK} K, ice sheets covered ${(s.glacialIceFraction * 100).toFixed(1)}% of the surface and the sea fell ${s.seaLevelFallM} m` + (s.landBridges ? `, opening ${s.landBridges} land bridge${s.landBridges > 1 ? 's' : ''}` : ', but no land bridges opened') + '.';
 }
 
 /** Plain-object view of one cell, used for inspection and export. */
+const GLACIAL_NAMES = ['unglaciated', 'glacial ice sheet', 'exposed glacial shelf', 'glacial land bridge', 'present ice, retreated at glacial'];
 export function cellInfo(planet, i) {
   const p = planet.plates[planet.plate[i]];
   const tm = Array.from(planet.climate.temperatureMonthly.subarray(12 * i, 12 * i + 12));
@@ -295,6 +306,8 @@ export function cellInfo(planet, i) {
     info.basinKm2 = Math.round(b.cells * planet.cellAreaKm2);
     if (h.lake[i]) info.lake = LAKE_TYPES[h.lake[i]];
   }
+  const g = planet.glaciationComputed ? planet.glaciation : null;
+  if (g) { info.glacial = GLACIAL_NAMES[g.cell[i]]; if (g.thickness[i]) info.glacialIceM = g.thickness[i]; if (g.presentThickness[i]) info.presentIceM = g.presentThickness[i]; }
   return info;
 }
 
@@ -304,6 +317,6 @@ export function planetSummary(planet) {
   for (let i = 0; i < n; i++) { if (planet.elevation[i] >= 0) land++; bt[planet.boundary[i]]++; maxEl = Math.max(maxEl, planet.elevation[i]); minEl = Math.min(minEl, planet.elevation[i]); }
   const kc = {}; let pSum = 0, tSum = 0;
   for (let i = 0; i < n; i++) { pSum += planet.rainfall[i]; tSum += planet.temperature[i]; if (planet.koppen[i]) { const k = KOPPEN[planet.koppen[i]][0]; kc[k] = (kc[k] || 0) + 1; } }
-  const hs = planet.hydro.stats;
-  return { hydrology: { riverCells: hs.riverCells, endorheicLandFraction: Math.round(hs.endorheicFraction * 1000) / 1000, runoffRatio: Math.round(hs.runoffRatio * 1000) / 1000, freshLakes: hs.freshLakes, saltLakes: hs.saltLakes, toSeaM3s: hs.toSeaM3s, largestRiver: planet.hydro.rivers[0] ? planet.hydro.rivers[0].name : null }, cells: n, plates: planet.plates.length, tilt: planet.tilt, meanTemperature: Math.round(tSum / n * 10) / 10, meanPrecipitation: Math.round(pSum / n), koppenGroups: kc, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
+  const hs = planet.hydro.stats, gs = planet.glaciationComputed ? planet.glaciation.stats : null;
+  return { glaciation: gs ? { globalCoolingK: gs.globalCoolingK, seaLevelFallM: gs.seaLevelFallM, glacialIceFraction: Math.round(gs.glacialIceFraction * 1000) / 1000, presentIceFraction: Math.round(gs.presentIceFraction * 1000) / 1000, glacialIceVolumeKm3: gs.glacialIceVolumeKm3, landBridges: gs.landBridges, landmassesJoined: gs.landmassesJoined, exposedShelfKm2: gs.exposedShelfKm2 } : null, hydrology: { riverCells: hs.riverCells, endorheicLandFraction: Math.round(hs.endorheicFraction * 1000) / 1000, runoffRatio: Math.round(hs.runoffRatio * 1000) / 1000, freshLakes: hs.freshLakes, saltLakes: hs.saltLakes, toSeaM3s: hs.toSeaM3s, largestRiver: planet.hydro.rivers[0] ? planet.hydro.rivers[0].name : null }, cells: n, plates: planet.plates.length, tilt: planet.tilt, meanTemperature: Math.round(tSum / n * 10) / 10, meanPrecipitation: Math.round(pSum / n), koppenGroups: kc, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
 }

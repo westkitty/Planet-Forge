@@ -9,7 +9,7 @@ const row = lat => 180 + 2 * lat;
 const range = (a, k) => { let hi = -1e9, lo = 1e9, arg = 0; for (let m = 0; m < 12; m++) { const v = a[k * 12 + m]; if (v > hi) { hi = v; arg = m; } lo = Math.min(lo, v); } return [hi - lo, arg]; };
 
 test('version and heat capacities: 50 m ocean mixed layer, land = air column + soil, damping factor 1/sqrt(1+(wt)^2)', () => {
-  assert.ok(['season-0.5', 'eddy-0.6'].includes(MODEL_VERSION)); // eddy-0.6 (F-0007) keeps the season-0.5 temperature model
+  assert.equal(MODEL_VERSION, 'glacial-0.8');
   assert.ok(C_OCEAN > 1.9e8 && C_OCEAN < 2.2e8 && C_LAND > 0.9e7 && C_LAND < 2e7);
   const wt = OMEGA * C_OCEAN / (2.09 + 3.81), damp = 1 / Math.sqrt(1 + wt * wt);
   assert.ok(damp > 0.1 && damp < 0.2, `ocean annual-harmonic damping ${damp}`); // 50 m mixed layer: ~14% of the equilibrium amplitude, ~82° (2.7-month) lag
