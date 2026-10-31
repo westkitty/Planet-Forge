@@ -26,7 +26,13 @@ camera.position.set(0, 0, 3);
 // Startup guard: a readable message instead of a blank page when WebGL 2 is unavailable.
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' }); }
-catch (e) { window.__pfBootFail?.('This browser could not create a WebGL 2 context (' + e.message + '). Enable hardware acceleration or use a current Chrome, Edge, Firefox or Safari.'); throw e; }
+catch (e) {
+  const probe = t => { try { return !!document.createElement('canvas').getContext(t); } catch { return false; } };
+  const brave = !!navigator.brave;
+  window.__pfBootFail?.('This browser refused to create a WebGL 2 context, which the 3D globe needs (' + e.message + '; WebGL 2: ' + (probe('webgl2') ? 'available' : 'unavailable') + ', WebGL 1: ' + (probe('webgl') ? 'available' : 'unavailable') + ').'
+    + (brave ? ' In Brave: open Shields (lion icon) for this site and allow fingerprinting / turn Shields down, and check brave://settings/system → "Use graphics acceleration when available" is on (then restart Brave).' : ' Turn on hardware/graphics acceleration in the browser settings and restart it, or try a current Chrome, Edge, Firefox or Safari.'));
+  throw e;
+}
 root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
 const overlays = createOverlays(baseMesh, presentation.radius);

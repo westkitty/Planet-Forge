@@ -511,8 +511,11 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
 { // Startup: the loading screen paints before generation and clears afterwards; without WebGL 2 the page explains why.
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
+  // record, from inside the page on every animation frame, whether the loading screen was actually painted
+  await page.addInitScript(() => { const f = () => { const b = document.getElementById('boot'); if (b && !b.hidden && getComputedStyle(b).display !== 'none') window.__bootSeen = true; if (!window.__pfStarted) requestAnimationFrame(f); }; requestAnimationFrame(f); });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  const bootVisible = await page.locator('#boot').isVisible();
+  await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
+  const bootVisible = await page.evaluate(() => !!window.__bootSeen);
   await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
   const bootGone = await page.locator('#boot').isHidden(), err = await page.locator('#boot-err').isHidden();
   check('[boot] loading screen is shown during world generation and removed once the planet renders', bootVisible && bootGone && err);
@@ -522,7 +525,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   await p2.addInitScript(() => { const o = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/.test(t) ? null : o.call(this, t, ...a); }; });
   await p2.goto(url, { waitUntil: 'load' }); await p2.waitForTimeout(1500);
   const msg = await p2.locator('#boot').innerText();
-  check('[boot] without WebGL the page shows a readable reason instead of a blank screen', /could not start/i.test(msg) && /WebGL 2/.test(msg), msg.slice(0, 200));
+  check('[boot] without WebGL the page shows a readable reason instead of a blank screen', /could not start/i.test(msg) && /WebGL 2/.test(msg) && /graphics acceleration|hardware/i.test(msg), msg.slice(0, 200));
   await noGl.close();
 }
 { // PF-03 Auto: on this software renderer frames are far over budget, so Auto must step down from measurements.
