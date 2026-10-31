@@ -124,10 +124,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Milestone 4 (PF-15/20/21/23/33): `src/gameplay/civilization.js`, `src/gameplay/ecology.js`, `src/playHistory.js`; population-weighted settlement lights and ruin markers. Design repairs: no ruins → collapse dynamics; all causes "famine" → dominant-stress attribution; unsolvable mysteries filtered; in-place GPU attribute update; ecology made eventful.
 - Results: npm test 85/85; smoke 151/151. M3 + M4 ship together on PR #5.
 
-## 2026-10-31 — Milestones 5 + 6 merged; program state
+## 2026-10-31 15:38 ET — Final PF-33 programme release validation
 
-- PR #5 (M3+M4) merged as 0821d72; deploy 41233105655 incl. live-verify succeeded → 26 of 33 packages LIVE_VERIFIED.
-- PR #6 (M5+M6: PF-04/16/19/24/25/26/32) CI 41233496412 green; merged as 4fb4cea; deploy 41233978729 running at the time of writing.
-- Local verification of the final tree: unit tests 95/95 serial (two timing-budget tests had failed only while the browser suite ran concurrently; thresholds unchanged), browser smoke 158/158.
-- Final perf vs baseline (SwiftShader): desktop median 166.7 → 233.3 ms (high) / 200.0 ms (low); 0 GPU-object leaks. Report: docs/implementation/PF_COMPLETION_REPORT.md.
-- A push attempt with --force-with-lease was refused (user forbids force pushes); resolved with a fast-forward, nothing overwritten.
+- Final merged code: `4fb4cea` (PR #6; PF-04, 16, 19, 24, 25, 26, 32), following `0821d72` (PR #5). Application source for all 33 named functional first-slice PF packages is in main.
+- GitHub Actions run 41233978729 SUCCESS: 95/95 unit, production build, 158/158 preview smoke, Pages deployed, public JS/CSS hashes verified, 158/158 browser checks against the public site. Previous run 41233105655 passed 151/151 live checks for Milestones 3 and 4.
+- Updated `docs/implementation/PF_MASTER_PROGRESS.md` to 33/33 LIVE_VERIFIED with exact release receipts and wrote `PF_COMPLETION_REPORT.md` distinguishing release proof from remaining QA. Also replaced obsolete prototype README and added a durable project-bible contract.
+- Remaining known uncertainties (issue #8): real hardware/GPU performance, reported one-run mobile heap increase, independent human playtesting, and deliberately unmodeled physical systems. These do not contradict the 33-feature release but prevent an unsupported unconditional AAA-quality claim.
+- This documentation-only closure does not alter scientific algorithms or rendered application. The hourly autonomous development executor stays paused.

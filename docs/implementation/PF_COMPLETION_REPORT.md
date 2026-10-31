@@ -1,121 +1,93 @@
-# Planet Forge — PF-01…PF-33 completion report
+# Planet Forge — PF-01 through PF-33 Release and Completion Evidence
 
-Prepared 2026-10-31.
+**Evidence cutoff:** 2026-10-31, release candidate `4fb4cea4892ed36460a9b82661c1927ae2dd44b9` on `main`.
+**Site:** https://westkitty.github.io/Planet-Forge/
+**Verified release status:** all 33 PF first-implementation packages merged and deployed; **158/158 live-site browser checks passed** on run 41233978729 at the exact application revision `4fb4cea`. See the [progress ledger](PF_MASTER_PROGRESS.md). This is evidence of release and smoke-tested functionality, not a claim of full real-device or human-playtest quality.
 
-- **Production main:** 4fb4cea (merge of PR #6).
-- **Live game:** https://westkitty.github.io/Planet-Forge/
-- **Per-package detail:** `PF_MASTER_PROGRESS.md`
+## 1. Verified release identity
 
-## Status
+- Final milestone implementation: `be24949c70c86d5c5afe06a2af4b43d8d0572c41` in [PR #6](https://github.com/westkitty/Planet-Forge/pull/6).
+- Final milestone merge: `4fb4cea4892ed36460a9b82661c1927ae2dd44b9` in `main`.
+- Final release workflow: [Actions run 41233978729](https://github.com/westkitty/Planet-Forge/actions/runs/41233978729), with separate `verify`, `deploy`, and `live-verify` jobs.
+- Prior milestone merge: `0821d721667a055565bf0a4d3887c3cb7b08f8e3` in [PR #5](https://github.com/westkitty/Planet-Forge/pull/5), verified and deployed by [run 41233105655](https://github.com/westkitty/Planet-Forge/actions/runs/41233105655).
+- Earlier milestones: [PR #2](https://github.com/westkitty/Planet-Forge/pull/2), [#3](https://github.com/westkitty/Planet-Forge/pull/3) and [#4](https://github.com/westkitty/Planet-Forge/pull/4) passed their respective production verification paths.
 
-- **All 33 packages are LIVE_VERIFIED.** For each one, a post-deploy CI job confirmed the public JS/CSS are byte-identical to the build and ran the browser smoke suite against the public URL.
-- The final deploy (run 41233978729, production main 4fb4cea) passed its live-verify job with **158/158 checks on the public site**. The program is COMPLETE against the ledger's definition, with the limitations listed below.
+All 33 named packages are represented in the source tree and merged history; a completed **implementation package** means a bounded, playable first implementation, not an unlimited or scientifically exact simulation.
 
-| Milestone | Packages | PR | Merge | Deploy / live-verify |
-|---|---|---|---|---|
-| 0 | PF-01 | [#2](https://github.com/westkitty/Planet-Forge/pull/2) | 5ca234b | 41222630943; re-verified live in 41227194178 |
-| 1 Planetarium | PF-02, 03, 05, 06, 07, 08 | [#3](https://github.com/westkitty/Planet-Forge/pull/3) | dbf3c2a | 41227194178 ✓ (live JS hash = build, smoke 119/119 on the public URL) |
-| 2 Observatory | PF-09, 10, 11, 12, 13, 27, 30, 31 | [#4](https://github.com/westkitty/Planet-Forge/pull/4) | 3628217 | 41228746564 ✓ |
-| 3 + 4 Playable science, living worlds | PF-14, 15, 17, 18, 20, 21, 22, 23, 28, 29, 33 | [#5](https://github.com/westkitty/Planet-Forge/pull/5) | 0821d72 | 41233105655 ✓ |
-| 5 + 6 Celestial, exploration | PF-04, 16, 19, 24, 25, 26, 32 | [#6](https://github.com/westkitty/Planet-Forge/pull/6) | 4fb4cea | 41233978729 ✓ (live smoke 158/158) |
+## 2. Implemented and integrated feature groups
 
-## What the game now contains
+| Group | Package IDs | Implementation surface |
+|---|---|---|
+| Planetarium | PF-01–03, PF-05–08 | Deterministic star catalogue, galactic band, spectral stars, graphics tiers, day/night, oceans, climate-influenced clouds and settlement lighting |
+| Observatory | PF-09–13, PF-27, PF-30–31 | Camera tours, accurate picking, effects, explanatory tools, saves, transects, investigations and scientific correlations |
+| Playable planetary science | PF-14, PF-17–18, PF-22, PF-28–29 | Ice-age migration, mapping, disaster scenarios, trials, seasonal expeditions and watershed management |
+| Living worlds | PF-15, PF-20–21, PF-23, PF-33 | River kingdoms, ecological succession, detective cases, recorded history and ruins |
+| Celestial systems | PF-04, PF-24–26 | Player constellations, parent stars, eclipses and a bounded orbital satellite fleet |
+| Deep exploration | PF-16, PF-19, PF-32 | Isolated planetary interventions, local-terrain rover and submersible missions |
 
-**Visual presentation**
-- **Sky:** a deterministic galactic starfield with spikes and twinkle.
-- **Graphics quality:** measured adaptive tiers.
-- **Lighting:** a planet-frame sun with a day clock and twilight.
-- **Surface:** depth-aware oceans and clouds driven by the climate model.
-- **Settlements:** night lights that follow the recorded population.
+Implementation details, game rules and their limitations: [M1](../features/M1-planetarium.md), [M2](../features/M2-observatory.md), [M3](../features/M3-playable-science.md), [M4](../features/M4-living-worlds.md), [M5](../features/M5-celestial.md) and [M6](../features/M6-exploration.md).
 
-**Observatory drawer** (opened on demand; the console stays 14.5 %)
-- the Why Engine;
-- transects;
-- correlation queries;
-- five investigations;
-- tours and bookmarks;
-- a journal with versioned saves, undo and redo.
+## 3. Release verification
 
-**Play tab, 18 modes:**
-- trials;
-- seasonal expeditions;
-- survey;
-- watershed council;
-- Great Thaw;
-- faultline;
-- river kingdoms;
-- deep time;
-- ruins;
-- mysteries;
-- ecology;
-- stellar foundry;
-- eclipses;
-- satellites;
-- constellations;
-- rover;
-- submersible;
-- intervention lab.
+**CI verified against the final merge SHA `4fb4cea`:**
+- `npm test`: **95 tests passed, 0 failures**, per `verify` job logs.
+- `npm run build`: passed; final JS asset is substantially larger than the historical initial build.
+- `scripts/smoke.mjs` against Vite preview: **158/158 checks passed** at desktop and mobile viewports.
+- GitHub Pages deployment: passed.
+- Production JS/CSS served by the public site: byte-hash comparison with the CI build passed.
+- Live-site browser smoke: **158/158 PASS**, directly verified from the completed `live-verify` job logs for run 41233978729 (released application SHA `4fb4cea`).
 
-**One shared world.** All modes read the same authoritative world (model glacial-0.8, unchanged). Gameplay state lives in one store that is saved and replays deterministically. Examples of the shared world:
-- Ruins come from recorded collapses in the river-kingdom history.
-- Mysteries are built from those same records.
-- Settlement lights follow the recorded population.
-- Eclipse shadows land on real cells of the planet.
-- Rover terrain comes from the cell elevations.
+The browser suite covers actual Play-tab operation of every newly added mode in addition to seed determinism, scientific layers, touch input, export, layout, sky render and major world transitions. It is automated acceptance evidence, not independent human playtesting.
 
-## Verification
+**Protected invariants:** a 100,002-cell scientific world, `glacial-0.8`, 12 atlas layers, reproducible seed behavior, JSON export, a single Three.js renderer, and an 85.5% viewer / 14.5% persistent controls layout. See tests and `OPERATIONAL_STATE.md` for specific proof scope.
 
-- **Unit tests:** 95/95 when run serially. Two timing-budget tests failed only while the browser suite competed for the same four CPUs. Their thresholds were not changed, and they pass when run alone and in CI.
-- **Browser smoke:** 158/158 locally (1280×800 and 390×844), plus PR CI on every merge.
-- **What the checks cover:**
-  - viewer 85.5 %, console 14.5 %;
-  - all 12 scientific layers, plus season, tilt and era controls;
-  - inspection;
-  - keyboard and pinch input;
-  - JSON export;
-  - zero console or network errors;
-  - every new system through its real UI.
-- **Scientific integrity:**
-  - Every observatory and gameplay module has a test showing the world arrays are unchanged afterwards.
-  - The world model version is unchanged.
-  - The parent star is explicitly not coupled to the climate.
-  - Gameplay approximations are labelled in each panel's rules.
+## 4. Performance and resource integrity
 
-## Performance (headless SwiftShader; relative only)
+The original feature execution reported the following matched **SwiftShader software-renderer** medians:
 
-| | Desktop median frame | Mobile median frame | Draws per frame | Live buffers / textures / programs | GPU-object leaks |
-|---|---|---|---|---|---|
-| Baseline d26a030 | 166.7 ms | 133.4 ms | 4 | 15 / 4 / 4 | 0 |
-| Final, high tier | 233.3 ms (+40 %) | 183.4 ms | 7.1 | 28 / 6 / 7 | 0 (forge cycles and 12 tier switches) |
-| Final, low tier | 200.0 ms (+20 %) | 166.6 ms | 7.1 | 28 / 6 / 7 | 0 |
+| Configuration | Desktop median frame interval | Difference vs original |
+|---|---:|---:|
+| Original planetary viewer | ~167 ms | baseline |
+| Completed package set, high quality | ~233 ms | ~+40% |
+| Completed package set, low quality | ~200 ms | ~+20% |
 
-- **Bundle size:** JS grew from 538.6 kB to 714.9 kB (209.7 kB gzip). It is a single chunk, and code-splitting the drawer is a recommended follow-up.
-- **Heap:** one mobile run measured 106.9 MB of JS heap after 8 forge cycles; the other runs measured 66–71 MB. Not yet investigated.
-- **Not measured:** real-GPU or mobile-hardware frame times.
+These final comparative values were supplied by the prior executor; the final comparison's raw measurements have **not** been located in the committed repository. Treat them as **reported**, not independently reproduced benchmarks. Existing committed intermediate measurements include `docs/features/PF-01/perf-*.json`, `docs/features/M1/perf-*.json` and `docs/features/M2/perf-high.json`.
 
-## Known limitations and honest gaps
+Reported resource probes found no increase in live WebGL object counts across regeneration and quality-tier cycles. One mobile run's JS heap reportedly rose to ~107 MB after eight regenerations, while others stayed around 66–71 MB. **Cause unknown:** this is a reproducibility investigation, not proof of a memory leak or proof of no leak.
 
-**Gameplay approximations.** Every mode uses declared gameplay approximations, not physical simulations:
-- seasonal river flow;
-- linear sea-level rise in the Great Thaw;
-- fictional hazard frequencies and populations;
-- the demographic and ecological rules;
-- illustrative impact scaling;
-- grid vehicles.
+Real phone/browser GPU frame pacing, thermal stability, accessibility beyond existing automation, and long-session behavior are **not verified**. The single JS bundle is reported at roughly 715 kB and should be evaluated for optional code-splitting if it affects startup or mobile performance.
 
-**Rendering and data:**
-- Local terrain detail is procedural.
-- Clouds do not evolve as weather.
-- Tours rotate the globe; the camera does not orbit.
+## 5. Scientific and gameplay scope limits
 
-**Verification gaps:**
-- I could not open the live site from the agent container, because its network policy blocks westkitty.github.io. The live checks run in GitHub Actions instead.
-- Visual quality was judged from SwiftShader screenshots only.
-- Gameplay depth is uneven: some modes are short, single-session loops.
-- No human playtesting has been done.
-- "AAA quality" is not claimed.
+- Glacial retreat between computed present/glacial endpoints is an explicitly declared **gameplay interpolation**.
+- Disaster frequencies, hypothetical populations, watershed seasonal-flow estimates and impact scaling are **gameplay models**, not validated predictive science.
+- The Stellar Foundry calculates incident flux and habitable-zone metrics; changing the parent star does **not** alter `glacial-0.8` climate.
+- Orbital models use simplified circular/Keplerian cases and a fixed planetary radius/mass convention.
+- Local rover and submersible terrain is generated from coarse authoritative cell data plus clearly labelled procedural small-scale detail.
+- Deep Time represents recorded civilization history and computed world states; continuous tectonic/erosion evolution is not simulated.
+- God of Consequences allows only currently supported model interventions (e.g. tilt and computed glacial state), not speculative atmosphere/ocean terraforming.
+- Several modes are short, deterministic single-session experiences. They have not been independently balance-tested through extensive human play.
 
-## Process notes
+These limits are disclosed in their feature files and should remain user-visible. A future simulation extension requires its own scientific model/version, validation, and compatibility contract.
 
-- **Force-push refused.** One push attempt used `--force-with-lease` and was correctly refused; the user forbade force pushes. The branch was fast-forwarded instead, and nothing was overwritten.
-- **Paused executor.** The previously paused hourly executor was not re-enabled.
+## 6. Non-negotiable remaining product-quality evidence
+
+The full PF roadmap was implemented as 33 **functional first-slice systems**. That is distinct from demonstrating that the entire project meets an unqualified AAA commercial quality bar. The following evidence remains outstanding and must not be silently promoted to complete:
+
+1. Real-device performance on representative mobile and desktop GPU hardware, including sustained interaction and thermal behavior.
+2. Reproduction or resolution of the reported 107 MB heap excursion.
+3. Human gameplay/playability evaluation (clarity, challenge quality, failure loops and novelty), particularly for PF-15, PF-19, PF-23, PF-26 and PF-32.
+4. Model-depth expansions not claimed as implemented, including true tectonic evolution and parent-star climate coupling.
+5. Focused accessibility review beyond existing keyboard, focus, responsive-layout and reduced-motion smoke checks.
+
+Treat these as explicit release-quality limitations, not as grounds to rewrite or discard the verified 33-system application.
+
+## 7. Release closure and remaining quality work
+
+Run 41233978729 completed **successfully** on `2026-10-31T19:38:12Z`: verify 95/95 unit and 158/158 preview, deploy success, public assets byte-identical to the CI build, and public browser smoke **158/158 PASS**. All 33 package rows are now `LIVE_VERIFIED` against their deployed milestone revisions. The original program is implemented as integrated first-slice experiences and public-site automated acceptance has passed.
+
+**Outstanding independent quality evidence is tracked in [GitHub issue #8](https://github.com/westkitty/Planet-Forge/issues/8)**: real-device performance and thermals, reproduction of the reported mobile heap excursion, and human gameplay/accessibility review. This record does not upgrade unmeasured properties to verified.
+
+A subsequent documentation-only merge may advance `main` without altering application JS/CSS; keep the tested application SHA and the documentation merge SHA distinguishable.
+
+**Final distinction:** “33 packages merged and deployed” is a repository/release fact; “33 playable first implementations checked on the public site” requires a successful live browser job; “commercially polished, comprehensively playtested, scientifically coupled AAA simulation” is not established by these checks.

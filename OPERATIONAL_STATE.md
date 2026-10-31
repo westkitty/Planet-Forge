@@ -142,9 +142,11 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Evidence (headless Chrome + SwiftShader): `npm test` 48/48, build OK, smoke 101/101 at 1280×800 and 390×844 (viewer 85.5 % / UI 14.5 %, zero console/network errors), no GPU-object leaks. Desktop median frame interval 166.7 → 183.4 ms in software rendering; real-GPU cost UNVERIFIED.
 - State: IMPLEMENTED, VERIFIED (local). Not REVIEWED, MERGED, DEPLOYED or LIVE-VERIFIED.
 
+## 2026-10-31 15:38 ET — PF-01–PF-33 integration and live-verified release (append-only)
 
-## 2026-10-31 — PF-01…PF-33 program: all 33 packages LIVE_VERIFIED (append-only)
-
-- Production main 4fb4cea. Final deploy run 41233978729: verify (tests, build, smoke), deploy and live-verify all succeeded; the live-verify job confirmed the served assets equal the build and passed 158/158 browser checks against https://westkitty.github.io/Planet-Forge/.
-- PRs #2–#6 merged; ledger: docs/implementation/PF_MASTER_PROGRESS.md; report and limitations: docs/implementation/PF_COMPLETION_REPORT.md.
-- World model unchanged (glacial-0.8). Hourly autonomous executor still paused.
+- User-authorized program release: **all 33 named functional first implementations** merged through PRs #2–#6. Final application revision on main: `4fb4cea4892ed36460a9b82661c1927ae2dd44b9` (PR #6, merged; 7 final packages PF-04, 16, 19, 24, 25, 26, 32).
+- Final GitHub Actions run [41233978729](https://github.com/westkitty/Planet-Forge/actions/runs/41233978729): `verify` SUCCESS (95/95 unit, build, 158/158 preview smoke), `deploy` SUCCESS, `live-verify` SUCCESS (public JS/CSS asset hashes match CI build, 158/158 public browser checks). The last seven are therefore LIVE_VERIFIED within the defined automated-smoke scope.
+- The preceding 11-package M3/M4 merge `0821d72` was public-site verified by run 41233105655 (151/151). Previously verified M0–M2 packages remain covered by their historic CI evidence.
+- The user-visible app remains a single Three.js WebGL world with 100,002 scientific cells, `glacial-0.8`, existing layers/exports, an 85.5% planetary viewport and 14.5% persistent interface. The 33 PF features run as integrated, bounded gameplay/observatory/celestial/exploration modules; their model approximations remain explicitly disclosed.
+- **Not promoted to verified:** human playtesting/AAA quality, real-device GPU FPS and thermal behavior, and the reported intermittent ~107 MB mobile JS-heap excursion. Prior executor reported software-rendering regression of +20% (low) to +40% (high) versus initial baseline; final raw comparison is not committed and is therefore not independently reproduced. These items are tracked in [issue #8](https://github.com/westkitty/Planet-Forge/issues/8).
+- Full source-grounded release record: `docs/implementation/PF_COMPLETION_REPORT.md`; exact per-package evidence: `docs/implementation/PF_MASTER_PROGRESS.md`. The hourly autonomous development executor remains PAUSED; authorized one-off releases did not turn it back on.
