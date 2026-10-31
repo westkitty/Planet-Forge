@@ -38,6 +38,18 @@
         <select id="era"><option value="today">Today (interglacial)</option><option value="glacial">Last glacial maximum</option></select>
       </div>
       <div class="action-group" aria-label="World actions"><button id="random">Random seed</button><button id="export">Export atlas</button></div>
+      <div class="control graphics-control">
+        <label for="graphics">Graphics</label>
+        <select id="graphics"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+      </div>
+      <div class="control day-control">
+        <label for="dayspeed">Day cycle · <span id="clock">Noon 45°E</span></label>
+        <div class="seedbox"><button id="daycycle" aria-pressed="false" aria-label="Play or pause the day cycle">Play</button><select id="dayspeed" aria-label="Day length on screen"><option value="slow">4 min / day</option><option value="medium" selected>1 min / day</option><option value="fast">15 s / day</option></select></div>
+      </div>
+      <div class="control cloud-control">
+        <label for="clouds">Sky</label>
+        <button id="clouds" aria-pressed="true" title="Clouds are a visual approximation of where the model's rain falls">Clouds</button>
+      </div>
     </div>
     <div class="atlas-stream" aria-label="Scrollable atlas data strip" tabindex="0">
       <section class="readout readout-stats" aria-label="World telemetry"><h2>World telemetry</h2><div class="stats" id="stats"></div></section>

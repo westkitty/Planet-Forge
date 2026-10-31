@@ -119,8 +119,11 @@ export function brightestIds(cat, n) {
 /** Apparent size (CSS px) and brightness (0..1) of a star of magnitude m. */
 export function starAppearance(m) {
   const lf = Math.max(0, (M_LIMIT - m) * .4); // log10 flux relative to the faintest star
-  return { size: Math.min(7, 2 + .95 * lf), brightness: Math.min(1, .2 + .13 * Math.pow(10, lf * .42)) };
+  return { size: Math.min(7, 2 + .95 * lf), brightness: Math.min(1, .2 + .13 * Math.pow(10, lf * .42)), spike: m < SPIKE_MAG ? Math.min(1, Math.max(.35, (SPIKE_MAG - m) / 2)) : 0 };
 }
+export const SPIKE_MAG = 1.2;   // only stars brighter than this get diffraction spikes (~25 of 14,000)
+/** Deterministic scintillation phase in [0, 1) for star id i. */
+export const starPhase = i => ((Math.imul(i + 1, 2654435761) >>> 0) % 10007) / 10007;
 export function autoSkyQuality(env = globalThis) {
   const forced = env.location ? new URLSearchParams(env.location.search).get('sky') : null;
   if (forced && SKY_QUALITY[forced]) return forced;
@@ -129,27 +132,49 @@ export function autoSkyQuality(env = globalThis) {
   return 'high';
 }
 
+// PF-02: soft luminous core + faint halo; the rarest bright stars (m < 1.2) get a four-point diffraction cross on an
+// enlarged sprite whose core keeps its apparent size. Optional scintillation is a deterministic per-star phase and is
+// switched off under reduced motion and on the low tier.
 const starVertex = `
 attribute vec3 color;
 attribute float size;
 attribute float brightness;
+attribute float spike;
+attribute float phase;
 uniform float uPixelRatio;
+uniform float uTime;
+uniform float uTwinkle;
 varying vec3 vColor;
 varying float vBright;
+varying float vSpike;
+varying float vScale;
 void main() {
   vColor = color;
-  vBright = brightness;
-  gl_PointSize = size * uPixelRatio;
+  vSpike = spike;
+  vScale = 1.0 + 1.8 * spike;
+  float flicker = 1.0 - uTwinkle * 0.16 * (0.5 + 0.5 * sin(uTime * (0.9 + 1.7 * phase) + phase * 61.0));
+  vBright = brightness * flicker;
+  gl_PointSize = size * vScale * uPixelRatio;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 const starFragment = `
 varying vec3 vColor;
 varying float vBright;
+varying float vSpike;
+varying float vScale;
 void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
   float r2 = dot(p, p);
   if (r2 > 1.0) discard;
-  float a = (exp(-r2 * 5.0) + 0.16 * exp(-r2 * 2.0)) * vBright * (1.0 - r2 * r2);
+  vec2 c = p * vScale;                       // core coordinates: same apparent core size as an unspiked star
+  float rc = dot(c, c);
+  float a = (exp(-rc * 5.0) + 0.16 * exp(-rc * 2.0)) * (1.0 - min(1.0, rc * rc));
+  if (vSpike > 0.0) {
+    vec2 q = abs(p);
+    float cross = exp(-q.y * 46.0) * (1.0 - q.x) + exp(-q.x * 46.0) * (1.0 - q.y);
+    a += vSpike * 0.55 * cross * (1.0 - r2);
+  }
+  a *= vBright;
   gl_FragColor = vec4(vColor * a, a);
 }`;
 const skyVertex = `
@@ -248,6 +273,7 @@ export function createStarfield(scene, renderer, { seed = SKY_SEED, quality = au
   const group = new THREE.Group();
   group.name = 'pf-starfield';
   scene.add(group);
+  const time = { value: 0 }, twinkle = { value: 0 };
   let stars = null, sky = null, cube = null, tier = null, fallback = false, bakeFailed = false, shown = [];
   const canvas = renderer.domElement, rebake = () => build(tier); // GPU render targets lose their contents with the context
   canvas?.addEventListener?.('webglcontextrestored', rebake);
@@ -257,20 +283,22 @@ export function createStarfield(scene, renderer, { seed = SKY_SEED, quality = au
     tier = SKY_QUALITY[q] ? q : 'medium';
     const settings = SKY_QUALITY[tier];
     shown = brightestIds(catalogue, settings.stars);
-    const n = shown.length, pos = new Float32Array(3 * n), col = new Float32Array(3 * n), size = new Float32Array(n), bright = new Float32Array(n);
+    const n = shown.length, pos = new Float32Array(3 * n), col = new Float32Array(3 * n), size = new Float32Array(n), bright = new Float32Array(n), spikes = new Float32Array(n), phases = new Float32Array(n);
     for (let j = 0; j < n; j++) {
       const i = shown[j], look = starAppearance(catalogue.magnitude[i]);
       for (let c = 0; c < 3; c++) { pos[3 * j + c] = catalogue.direction[3 * i + c] * radius * .98; col[3 * j + c] = catalogue.color[3 * i + c]; }
-      size[j] = look.size; bright[j] = look.brightness;
+      size[j] = look.size; bright[j] = look.brightness; spikes[j] = look.spike; phases[j] = starPhase(i);
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geometry.setAttribute('size', new THREE.BufferAttribute(size, 1));
     geometry.setAttribute('brightness', new THREE.BufferAttribute(bright, 1));
+    geometry.setAttribute('spike', new THREE.BufferAttribute(spikes, 1));
+    geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
     const material = fallback
       ? new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, ...additive })
-      : new THREE.ShaderMaterial({ vertexShader: starVertex, fragmentShader: starFragment, uniforms: { uPixelRatio: { value: renderer.getPixelRatio() } }, ...additive });
+      : new THREE.ShaderMaterial({ vertexShader: starVertex, fragmentShader: starFragment, uniforms: { uPixelRatio: { value: renderer.getPixelRatio() }, uTime: time, uTwinkle: twinkle }, ...additive });
     stars = new THREE.Points(geometry, material);
     stars.name = 'pf-stars';
     stars.renderOrder = -9;
@@ -327,7 +355,10 @@ export function createStarfield(scene, renderer, { seed = SKY_SEED, quality = au
     /** Keep the sky centred on the viewer: stars are at infinity, so they show no parallax when the camera zooms. */
     follow(camera) { group.position.copy(camera.position); },
     setPixelRatio(r) { if (stars?.material.uniforms) stars.material.uniforms.uPixelRatio.value = r; },
-    setQuality(q) { build(q); },
+    setQuality(q) { if (q !== tier) build(q); },
+    /** Optional scintillation (PF-02); off by default, off under reduced motion (the caller stops ticking). */
+    setTwinkle(on) { twinkle.value = on ? 1 : 0; },
+    tick(dt) { time.value = (time.value + dt) % 3600; },
     checkShaders,
     info: () => ({ seed, cubeFace: cube ? cube.width : 0, signature: catalogue.signature, catalogue: catalogue.count, drawn: shown.length, quality: tier, fallback, galaxies: catalogue.galaxies.length, limitingMagnitude: +catalogue.magnitude[shown.reduce((a, i) => catalogue.magnitude[i] > catalogue.magnitude[a] ? i : a, shown[0])].toFixed(2) }),
     dispose() { teardown(); scene.remove(group); canvas?.removeEventListener?.('webglcontextrestored', rebake); }

@@ -6,7 +6,9 @@ import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const url = process.argv[2] || 'http://localhost:4173/Planet-Forge/';
+const baseUrl = process.argv[2] || 'http://localhost:4173/Planet-Forge/';
+// Screenshot comparisons need a fixed graphics tier; Auto (the default) is exercised separately at the end.
+const url = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'gfx=high';
 const outDir = process.argv[3] || 'smoke-artifacts';
 fs.mkdirSync(outDir, { recursive: true });
 const candidates = [process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter(Boolean);
@@ -119,6 +121,50 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   check(p + 'sky is unchanged by layer switching', skyLayer < 0.002, `changed fraction=${skyLayer.toFixed(4)}`);
   const sky0 = await page.evaluate(() => window.__planetForge.sky);
   check(p + 'sky catalogue is the fixed seeded catalogue with galaxies and no shader fallback', sky0 && sky0.seed === 'PLANET-FORGE-SKY-1' && sky0.signature === 'b0d0aa15' && sky0.catalogue === 14000 && sky0.galaxies === 10 && sky0.fallback === false && sky0.drawn >= 4500, JSON.stringify(sky0));
+
+  // ---- Milestone 1 (PF-02/03/05/06/07/08) ----
+  const view0 = await page.evaluate(() => window.__planetForgeView.info());
+  check(p + 'natural view has sunlight, ocean shading, climate clouds and cloud shadows', view0.natural && view0.ocean && view0.clouds && view0.cloudShadows && view0.quality === 'high', JSON.stringify(view0));
+  const centreClip = { x: cx - box.width * .12, y: cy - box.height * .12, width: box.width * .24, height: box.height * .24 };
+  const cloudRef = await page.screenshot({ clip: centreClip });
+  const lum = async () => (await canvasStats(page, await page.screenshot({ clip: centreClip }))).meanLum;
+  const sunA = view0.subsolarLon, facing = await page.evaluate(() => window.__planetForgeView.viewLongitude());
+  await page.evaluate(l => window.__planetForgeView.setSubsolarLongitude(l), facing); await page.waitForTimeout(300);
+  const lumDay = await lum();
+  await page.evaluate(l => window.__planetForgeView.setSubsolarLongitude(l), facing + 180); await page.waitForTimeout(300);
+  const lumNight = await lum();
+  check(p + 'sun behind the planet leaves the visible disc in night (day/night terminator)', lumDay > lumNight * 1.8, `noon facing ${lumDay.toFixed(1)} vs midnight facing ${lumNight.toFixed(1)}`);
+  await page.evaluate(l => window.__planetForgeView.setSubsolarLongitude(l), sunA); await page.waitForTimeout(300);
+  const lumA = (await canvasStats(page, cloudRef)).meanLum;
+  const restoredSun = Math.abs(await lum() - lumA) < 0.5;
+  check(p + 'returning the sun restores the lit view', restoredSun);
+  await page.click('#daycycle'); await page.waitForTimeout(1500);
+  const playing = await page.evaluate(() => window.__planetForgeView.info());
+  await page.click('#daycycle');
+  check(p + 'day-cycle play button advances solar time and pauses', playing.dayPlaying && Math.abs(playing.subsolarLon - sunA) > 1 && !(await page.evaluate(() => window.__planetForgeView.info())).dayPlaying, `subsolar ${sunA} → ${playing.subsolarLon}`);
+  await page.evaluate(l => window.__planetForgeView.setSubsolarLongitude(l), sunA); await page.waitForTimeout(200);
+  const cloudOn = await canvas.screenshot();
+  await page.click('#clouds'); await page.waitForTimeout(300);
+  const cloudOffInfo = await page.evaluate(() => window.__planetForgeView.info()), cloudOff = await canvas.screenshot();
+  await page.click('#clouds'); await page.waitForTimeout(300);
+  const cloudDiff = await diff(page, cloudOn, cloudOff, 20), cloudBack = await diff(page, cloudOn, await canvas.screenshot(), 20);
+  check(p + 'cloud toggle hides and restores clouds and their shadows', !cloudOffInfo.clouds && !cloudOffInfo.cloudShadows && cloudDiff > 0.01 && cloudBack < 0.002, `off diff=${cloudDiff.toFixed(3)}, back=${cloudBack.toFixed(4)}`);
+  await page.selectOption('#layer', 'elevation'); await page.waitForTimeout(300);
+  const sciView = await page.evaluate(() => window.__planetForgeView.info());
+  await page.selectOption('#layer', 'biome'); await page.waitForTimeout(300);
+  check(p + 'scientific layers use studio light with no clouds or ocean effects', !sciView.natural && !sciView.clouds && !sciView.ocean, JSON.stringify(sciView));
+  const sites = (await page.evaluate(() => window.__planetForgeView.settlementScreen())).filter(t => t.facing > .35 && t.x > box.x + 20 && t.x < box.x + box.width - 20 && t.y > box.y + 20 && t.y < box.y + box.height - 20);
+  if (sites.length) {
+    await page.mouse.click(sites[0].x, sites[0].y); await page.waitForTimeout(200);
+    const si = await page.locator('#inspect').innerText(), sel = (await page.evaluate(() => window.__planetForgeView.info())).selectedSettlement;
+    check(p + 'clicking a settlement marker selects that settlement and reports its site', si.startsWith('Settlement ' + sites[0].name) && sel === sites[0].k, si.slice(0, 160));
+  } else check(p + 'clicking a settlement marker selects that settlement and reports its site', false, 'no settlement facing the camera');
+  await page.selectOption('#graphics', 'low'); await page.waitForTimeout(400);
+  const lowInfo = await page.evaluate(() => ({ v: window.__planetForgeView.info(), s: window.__planetForgeSky.info() }));
+  const lowShot = await canvasStats(page, await canvas.screenshot());
+  await page.selectOption('#graphics', 'high'); await page.waitForTimeout(400);
+  const highInfo = await page.evaluate(() => ({ v: window.__planetForgeView.info(), s: window.__planetForgeSky.info() }));
+  check(p + 'graphics selector switches tiers (low: no ocean effects, fewer stars; high restored)', lowInfo.v.quality === 'low' && !lowInfo.v.ocean && !lowInfo.v.cloudShadows && lowInfo.s.drawn === 4500 && lowShot.colours > 40 && highInfo.v.quality === 'high' && highInfo.s.drawn === 14000 && highInfo.v.ocean, `${JSON.stringify(lowInfo.v)} / ${highInfo.s.drawn}`);
 
   // Zoom by wheel
   await page.mouse.move(cx, cy);
@@ -264,6 +310,16 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     check(p + 'WebGL context restore redraws the globe and re-bakes the same sky', restored.colours > 40 && skyRestore < 0.002, `colours=${restored.colours}, sky changed fraction=${skyRestore.toFixed(4)}`);
   }
   check(p + 'zero console/page/network errors', errors.length === 0, errors.join(' ; '));
+  await context.close();
+}
+{ // PF-03 Auto: on this software renderer frames are far over budget, so Auto must step down from measurements.
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => window.__planetForgeView && window.__planetForgeView.info().controller.changes.length > 0, null, { timeout: 30000 }).catch(() => {});
+  const q = await page.evaluate(() => window.__planetForgeView.info());
+  const label = await page.locator('#graphics option[value=auto]').innerText();
+  check('[auto] measured frame times step the Auto tier down with a recorded reason', q.controller.mode === 'auto' && q.controller.changes.length > 0 && /median/.test(q.controller.changes[0].reason) && label === 'Auto (' + q.quality + ')', JSON.stringify(q.controller) + ' label=' + label);
   await context.close();
 }
 await browser.close();

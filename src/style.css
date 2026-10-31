@@ -22,6 +22,11 @@ h1{margin:2px 0 0;font-size:17px;letter-spacing:-.045em;font-weight:760;line-hei
 .season-control{flex-basis:94px}
 .tilt-control{flex-basis:118px}
 .era-control{flex-basis:146px}
+.graphics-control{flex-basis:112px}
+.day-control{flex-basis:208px}
+.day-control button{min-width:64px}
+.cloud-control{flex-basis:84px}
+button[aria-pressed="false"]#clouds{background:#102839;color:#9fb8c4}
 .seedbox{display:flex;align-items:stretch;gap:5px}
 input,select,button{font:inherit;height:42px;min-height:42px;border-radius:6px;border:1px solid #43667a;background:#102839;color:var(--bright);font-size:12px;line-height:1.1}
 input,select{padding:0 10px;outline:none}

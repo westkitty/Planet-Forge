@@ -99,3 +99,15 @@ test('a sky shader that fails to link falls back to plain points without the dom
   assert.equal(info.drawn, SKY_QUALITY.medium.stars);
   sky.dispose();
 });
+
+test('PF-02: diffraction spikes are rare, deterministic and limited to the brightest stars', async () => {
+  const { SPIKE_MAG, starPhase } = await import('../src/starfield.js');
+  const spiked = Array.from(cat.magnitude).filter(m => starAppearance(m).spike > 0);
+  assert.ok(spiked.length >= 5 && spiked.length <= 60, 'spiked stars ' + spiked.length);
+  assert.ok(spiked.every(m => m < SPIKE_MAG));
+  assert.equal(starAppearance(SPIKE_MAG + .01).spike, 0);
+  const ph = Array.from({ length: 1000 }, (_, i) => starPhase(i));
+  assert.ok(ph.every(p => p >= 0 && p < 1));
+  assert.equal(starPhase(17), starPhase(17));
+  assert.ok(new Set(ph.map(p => p.toFixed(3))).size > 500, 'phases are spread');
+});
