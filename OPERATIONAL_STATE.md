@@ -21,3 +21,10 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - CI: workflow now runs `npm ci`, tests, build and the browser smoke test before uploading the Pages artifact; smoke screenshots uploaded as a workflow artifact.
 - Pages: API reports `build_type: workflow` (source = GitHub Actions), public, HTTPS enforced. Main has no branch protection or rulesets.
 - Still true: the world model is the conceptual prototype (trigonometric fields, no cell topology, no physical tectonics/climate/hydrology). ~100k-cell simulation not started. No hourly executor is configured from this repository.
+
+## 2026-10-31 — Deployment verification for 01443bd (append-only log entry)
+
+- Pushed 01443bd to main (direct push; no branch protection). Actions run 41182721976: verify job success (tests, build, browser smoke 50/50 in CI), deploy job success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-CJqsHH8m.js` and `assets/index-8cH-Nk_m.css`, identical to the local build of 01443bd.
+- `scripts/smoke.mjs` against the live URL from the agent box: 50/50 checks pass at 1280×800 and 390×844, zero console errors.
+- Baseline status: functional prototype verified and deployed. Scientific simulation and hourly autonomous development not yet started.
