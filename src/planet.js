@@ -1,4 +1,4 @@
-// Planet Forge world model (version hydro-0.4: tectonic-0.2 relief + climate-0.3 climate + hydro-0.4 rivers, lakes, basins).
+// Planet Forge world model (version season-0.5: tectonic-0.2 relief + climate-0.3 circulation with season-0.5 heat-capacity-damped seasons + hydro-0.4 rivers, lakes, basins).
 //
 // Conceptual approximation, not a geodynamic simulation. The planet is a
 // geodesic cell mesh (10f^2+2 cells); plates grow from seeded nuclei, each
@@ -11,7 +11,7 @@ import { computeClimate, BIOMES, KOPPEN } from './climate.js';
 import { computeHydrology, RIVER_MIN_M3S, LAKE } from './hydrology.js';
 
 export { BIOMES, KOPPEN };
-export const MODEL_VERSION = 'hydro-0.4';
+export const MODEL_VERSION = 'season-0.5';
 export const LAKE_TYPES = ['none', 'fresh lake', 'salt lake', 'salt flat'];
 export const EARTH_RADIUS_KM = 6371;
 export const BOUNDARY = ['none', 'convergent', 'divergent', 'transform'];
@@ -285,7 +285,7 @@ export function createPlanet(seed, opts = {}) {
 export function cellInfo(planet, i) {
   const p = planet.plates[planet.plate[i]];
   const tm = Array.from(planet.climate.temperatureMonthly.subarray(12 * i, 12 * i + 12));
-  const info = { cell: i, lat: planet.lat[i], lon: planet.lon[i], elevation: planet.elevation[i], temperature: planet.temperature[i], temperatureJan: tm[0], temperatureJul: tm[6], rainfall: planet.rainfall[i], koppen: KOPPEN[planet.koppen[i]], biome: BIOMES[planet.biome[i]], plate: p.id, crust: p.crust, boundary: BOUNDARY[planet.boundary[i]] };
+  const info = { cell: i, lat: planet.lat[i], lon: planet.lon[i], elevation: planet.elevation[i], temperature: Math.round(planet.temperature[i] * 10) / 10, temperatureJan: Math.round(tm[0] * 10) / 10, temperatureJul: Math.round(tm[6] * 10) / 10, rainfall: planet.rainfall[i], koppen: KOPPEN[planet.koppen[i]], biome: BIOMES[planet.biome[i]], plate: p.id, crust: p.crust, boundary: BOUNDARY[planet.boundary[i]] };
   if (!planet.continental[i]) info.seafloorAgeMyr = Math.round(planet.seafloorAge[i]);
   const h = planet.hydro;
   if (planet.elevation[i] >= 0) {

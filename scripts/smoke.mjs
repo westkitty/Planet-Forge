@@ -125,7 +125,10 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const sJul = await canvas.screenshot();
   fs.writeFileSync(path.join(outDir, `${vp.name}-3-season-jul.png`), sJul);
   const dj = await diff(page, sJan, sJul);
-  check(p + 'season selector changes temperature map', dj > 0.02 && (await diff(page, sAnn, sJan)) > 0.01, `jan->jul changed fraction=${dj.toFixed(3)}`);
+  // season-0.5: with heat-capacity-damped seasons January differs from the annual map mostly over land (~0.7% of pixels
+  // on ATLAS-001, tilt 13.7°), so the annual->January threshold is 0.3% (was 1% when oceans swung ±14 K); Jan->Jul stays 2%.
+  const daj = await diff(page, sAnn, sJan);
+  check(p + 'season selector changes temperature map', dj > 0.02 && daj > 0.003, `jan->jul changed fraction=${dj.toFixed(3)}, annual->jan=${daj.toFixed(3)}`);
   await page.selectOption('#tilt', '60'); await page.waitForTimeout(1500);
   const sT60 = await canvas.screenshot();
   const tiltStats = await page.locator('#stats').innerText();
@@ -180,7 +183,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
   check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
-  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'hydro-0.4' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
+  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'season-0.5' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 

@@ -1,4 +1,4 @@
-// Planet Forge climate model (part of world model climate-0.3).
+// Planet Forge climate model (part of world model season-0.5; climate-0.3 with heat-capacity-damped seasons).
 //
 // Conceptual approximation, not a general circulation model. It chains:
 //   1. daily-mean top-of-atmosphere insolation for each month from axial tilt (circular orbit);
@@ -16,6 +16,15 @@ export const SOLAR_CONSTANT = 1361;            // W m^-2 (Kopp & Lean 2011)
 const OLR_A = 203.3, OLR_B = 2.09;            // W m^-2, W m^-2 K^-1 (North, Cahalan & Coakley 1981)
 const TRANSPORT = 3.81;                        // W m^-2 K^-1, Budyko-type transport toward global mean (North 1975)
 const LAPSE = 0.0065;                          // K m^-1 (ICAO standard atmosphere)
+// Seasonal heat capacity (season-0.5, F-0006 seasonal damping). Annual harmonic angular frequency and heat capacities in
+// J m^-2 K^-1: ocean = 50 m mixed layer (rho c_p h = 1025 x 3990 x 50, de Boyer Montegut et al. 2004 typical depth);
+// land = atmospheric column (c_p p_s / g = 1004 x 1e5 / 9.81 = 1.0e7) plus the soil layer reached by the annual
+// thermal wave (~1.5 m x 2e6 J m^-3 K^-1). Land is coupled to the zonal ocean anomaly by advected maritime air with an
+// exchange coefficient that decays inland (e-folding MARITIME_KM), the "ocean heat transport to land" term.
+export const OMEGA = 2 * Math.PI / (365.25 * 86400);
+export const C_OCEAN = 1025 * 3990 * 50, C_LAND = 1.0e7 + 3.0e6;
+export const MARITIME_K = 12, MARITIME_KM = 1000; // W m^-2 K^-1 at the coast; km
+const HARMONICS = 3;
 export const KOPPEN = ['Ocean', 'Af', 'Am', 'Aw', 'BWh', 'BWk', 'BSh', 'BSk', 'Csa', 'Csb', 'Csc', 'Cwa', 'Cwb', 'Cwc', 'Cfa', 'Cfb', 'Cfc', 'Dsa', 'Dsb', 'Dsc', 'Dsd', 'Dwa', 'Dwb', 'Dwc', 'Dwd', 'Dfa', 'Dfb', 'Dfc', 'Dfd', 'ET', 'EF'];
 // Colours from the Köppen-Geiger legend of Peel, Finlayson & McMahon (2007).
 export const KOPPEN_COLORS = { Ocean: '#175d83', Af: '#0000ff', Am: '#0078ff', Aw: '#46aafa', BWh: '#ff0000', BWk: '#ff9696', BSh: '#f5a500', BSk: '#ffdc64', Csa: '#ffff00', Csb: '#c8c800', Csc: '#969600', Cwa: '#96ff96', Cwb: '#64c864', Cwc: '#329632', Cfa: '#c8ff50', Cfb: '#64ff50', Cfc: '#32c800', Dsa: '#ff00ff', Dsb: '#c800c8', Dsc: '#963296', Dsd: '#966496', Dwa: '#aaafff', Dwb: '#5a78dc', Dwc: '#4b50b4', Dwd: '#320087', Dfa: '#00ffff', Dfb: '#37c8ff', Dfc: '#007d7d', Dfd: '#00465f', ET: '#b2b2b2', EF: '#666666' };
@@ -35,7 +44,11 @@ export function dailyInsolation(phi, d) {
 }
 /** Magnus-Tetens saturation vapour pressure (hPa) over water (T >= 0) or ice (T < 0); Murray (1967). */
 export function satVapour(T) { return T >= 0 ? 6.1078 * Math.exp(17.27 * T / (T + 237.3)) : 6.1078 * Math.exp(21.875 * T / (T + 265.5)); }
-const iceAlbedo = T => (T > -2 ? 0.3 : T < -18 ? 0.62 : 0.3 + 0.32 * (-2 - T) / 16);
+// Surface-plus-cloud albedo of a zonal band for one month: 0.3 when snow- and ice-free, ramping to 0.62 as monthly
+// temperature falls from 0 °C (snow and sea ice start to persist) to -10 °C (complete cover). climate-0.3 used the
+// annual mean temperature from -2 to -18 °C instead, which let high latitudes stay dark for most of the year.
+export const snowAlbedo = T => (T > SNOW_T0 ? 0.3 : T < SNOW_T1 ? 0.62 : 0.3 + 0.32 * (SNOW_T0 - T) / (SNOW_T0 - SNOW_T1));
+const SNOW_T0 = 0, SNOW_T1 = -10, EBM_ITER = 30, ZONAL_LAND_KM = 500;
 
 /** Zonal energy-balance model on 0.5° latitude rows. Returns annual temperature and monthly anomalies per row. */
 export function zonalEnergyBalance(tiltDeg) {
@@ -46,16 +59,41 @@ export function zonalEnergyBalance(tiltDeg) {
     const phi = (-90 + 0.5 * k) * Math.PI / 180; lat[k] = phi; w[k] = Math.max(1e-6, Math.cos(phi)); wsum += w[k];
     for (let m = 0; m < 12; m++) { const q = Math.max(0, dailyInsolation(phi, decl[m])); Qm[k * 12 + m] = q; Qa[k] += q / 12; }
   }
-  const Tann = new Float64Array(R).fill(15), albedo = new Float64Array(R).fill(0.3);
+  // Seasonal energy balance (season-0.5): albedo is evaluated per month from the month's zonal surface temperature
+  // (snow and sea ice come and go with the seasons, North & Coakley 1979), absorbed sunlight is averaged over the year,
+  // and the seasonal anomaly is the heat-capacity-damped response to the monthly absorbed-sunlight harmonics.
+  const H = HARMONICS, Tann = new Float64Array(R).fill(15), albedo = new Float64Array(R), alM = new Float64Array(R * 12), Am = new Float64Array(R * 12), Aa = new Float64Array(R);
+  const Fre = new Float64Array(R * H), Fim = new Float64Array(R * H), Ore = new Float64Array(R * H), Oim = new Float64Array(R * H), ocean = new Float64Array(R * 12), zonal = new Float64Array(R * 12);
+  const ab = OLR_B + TRANSPORT, Kz = MARITIME_K * Math.exp(-ZONAL_LAND_KM / MARITIME_KM);
+  for (let k = 0; k < R; k++) for (let m = 0; m < 12; m++) alM[k * 12 + m] = 0.3;
   let Tmean = 15;
-  for (let it = 0; it < 8; it++) {
-    let absorbed = 0; for (let k = 0; k < R; k++) { albedo[k] = iceAlbedo(Tann[k]); absorbed += w[k] * Qa[k] * (1 - albedo[k]); }
+  for (let it = 0; it < EBM_ITER; it++) {
+    let absorbed = 0;
+    for (let k = 0; k < R; k++) { Aa[k] = 0; for (let m = 0; m < 12; m++) { const v = Qm[k * 12 + m] * (1 - alM[k * 12 + m]); Am[k * 12 + m] = v; Aa[k] += v / 12; } absorbed += w[k] * Aa[k]; }
     Tmean = (absorbed / wsum - OLR_A) / OLR_B; // global balance: transport sums to zero
-    for (let k = 0; k < R; k++) Tann[k] = (Qa[k] * (1 - albedo[k]) - OLR_A + TRANSPORT * Tmean) / (OLR_B + TRANSPORT);
+    for (let k = 0; k < R; k++) {
+      Tann[k] = (Aa[k] - OLR_A + TRANSPORT * Tmean) / ab;
+      for (let m = 0; m < 12; m++) { ocean[k * 12 + m] = 0; zonal[k * 12 + m] = 0; }
+      for (let h = 1; h <= H; h++) {
+        let re = 0, im = 0;
+        for (let m = 0; m < 12; m++) { const f = Am[k * 12 + m] - Aa[k], th = 2 * Math.PI * h * (m + 0.5) / 12; re += f * Math.cos(th) * 2 / 12; im += f * Math.sin(th) * 2 / 12; }
+        const j = k * H + h - 1; Fre[j] = re; Fim[j] = im;
+        // Harmonic stored as f = re cos(nwt) + im sin(nwt), complex amplitude re - i im; response = amplitude / (a + i b).
+        let bb = h * OMEGA * C_OCEAN, d = ab * ab + bb * bb; // ocean: F / (B + D + i n w C_o)
+        Ore[j] = (re * ab - im * bb) / d; Oim[j] = (im * ab + re * bb) / d;
+        const fr = re + Kz * Ore[j], fi = im + Kz * Oim[j], al = ab + Kz; bb = h * OMEGA * C_LAND; d = al * al + bb * bb; // representative land
+        const lr = (fr * al - fi * bb) / d, li = (fi * al + fr * bb) / d;
+        for (let m = 0; m < 12; m++) { const th = 2 * Math.PI * h * (m + 0.5) / 12, c = Math.cos(th), sn = Math.sin(th); ocean[k * 12 + m] += Ore[j] * c + Oim[j] * sn; zonal[k * 12 + m] += 0.5 * (Ore[j] * c + Oim[j] * sn + lr * c + li * sn); }
+      }
+      for (let m = 0; m < 12; m++) alM[k * 12 + m] = 0.5 * alM[k * 12 + m] + 0.5 * snowAlbedo(Tann[k] + zonal[k * 12 + m]);
+    }
   }
+  for (let k = 0; k < R; k++) albedo[k] = Qa[k] > 1e-6 ? 1 - Aa[k] / Qa[k] : snowAlbedo(Tann[k]);
+  // Equilibrium (zero-heat-capacity) anomaly, kept for diagnostics and the glaciation work: (A_m - A_ann)/(B + D).
   const anomaly = new Float64Array(R * 12);
-  for (let k = 0; k < R; k++) for (let m = 0; m < 12; m++) anomaly[k * 12 + m] = (Qm[k * 12 + m] - Qa[k]) * (1 - albedo[k]) / (OLR_B + TRANSPORT);
-  return { rows: R, Tann, anomaly, Qa, Qm, albedo, globalMean: Tmean };
+  for (let k = 0; k < R; k++) for (let m = 0; m < 12; m++) anomaly[k * 12 + m] = (Am[k * 12 + m] - Aa[k]) / ab;
+  const seasonal = { harmonics: H, Fre, Fim, Ore, Oim, ocean, zonal, monthlyAlbedo: alM };
+  return { rows: R, Tann, anomaly, seasonal, Qa, Qm, albedo, globalMean: Tmean };
 }
 
 // Three-cell circulation in "ITCZ-relative latitude" (degrees): returns [eastward, poleward] wind and ascent factor.
@@ -86,19 +124,32 @@ export function computeClimate(ctx, tiltDeg) {
   for (let i = 0; i < n; i++) if (ocean[i]) { coastDist[i] = 0; queue[qt++] = i; }
   while (qh < qt) { const i = queue[qh++]; for (let e = O[i]; e < O[i + 1]; e++) { const j = N[e]; if (coastDist[j] < 0) { coastDist[j] = coastDist[i] + 1; queue[qt++] = j; } } }
 
-  // Monthly surface temperature.
-  const tMon = new Float32Array(n * 12), tAnn = new Float32Array(n);
+  // Monthly surface temperature: annual EBM temperature plus the heat-capacity-damped seasonal anomaly.
+  // Ocean cells take the mixed-layer response T_o. Land cells solve C_l dT/dt = F - (B + D) T + K (T_o - T), i.e.
+  // T_l,n = (F_n + K T_o,n) / (B + D + K + i n w C_l), with K = MARITIME_K exp(-d / MARITIME_KM), d = distance to coast.
+  const tMon = new Float32Array(n * 12), tAnn = new Float32Array(n), sz = ebm.seasonal, H = sz.harmonics;
+  const cosT = new Float64Array(12 * H), sinT = new Float64Array(12 * H);
+  for (let h = 1; h <= H; h++) for (let m = 0; m < 12; m++) { const th = 2 * Math.PI * h * (m + 0.5) / 12; cosT[(h - 1) * 12 + m] = Math.cos(th); sinT[(h - 1) * 12 + m] = Math.sin(th); }
+  const an = new Float64Array(12), ab = OLR_B + TRANSPORT;
   for (let i = 0; i < n; i++) {
     const [k, f] = rowOf(ctx.lat[i]);
     const base = ebm.Tann[k] * (1 - f) + ebm.Tann[k + 1] * f;
-    const cont = ocean[i] ? 0 : Math.min(1, coastDist[i] * spacingKm / 1800);
-    const amp = ocean[i] ? 0.35 : 0.7 + 1.1 * cont, lag = ocean[i] ? 2 : 1;
     const lapse = LAPSE * Math.max(0, elevation[i]), jitter = 1.5 * ctx.noise(i);
+    if (ocean[i]) { for (let m = 0; m < 12; m++) an[m] = sz.ocean[k * 12 + m] * (1 - f) + sz.ocean[(k + 1) * 12 + m] * f; }
+    else {
+      an.fill(0);
+      const K = MARITIME_K * Math.exp(-(coastDist[i] - 0.5) * spacingKm / MARITIME_KM);
+      for (let h = 1; h <= H; h++) {
+        const j0 = k * H + h - 1, j1 = (k + 1) * H + h - 1;
+        const fr = sz.Fre[j0] * (1 - f) + sz.Fre[j1] * f + K * (sz.Ore[j0] * (1 - f) + sz.Ore[j1] * f);
+        const fi = sz.Fim[j0] * (1 - f) + sz.Fim[j1] * f + K * (sz.Oim[j0] * (1 - f) + sz.Oim[j1] * f);
+        const a = ab + K, b = h * OMEGA * C_LAND, d = a * a + b * b, re = (fr * a - fi * b) / d, im = (fi * a + fr * b) / d;
+        for (let m = 0; m < 12; m++) an[m] += re * cosT[(h - 1) * 12 + m] + im * sinT[(h - 1) * 12 + m];
+      }
+    }
     let sum = 0;
     for (let m = 0; m < 12; m++) {
-      const mm = (m - lag + 12) % 12;
-      const an = ebm.anomaly[k * 12 + mm] * (1 - f) + ebm.anomaly[(k + 1) * 12 + mm] * f;
-      const t = clamp(base + amp * an - lapse + jitter, -80, 55);
+      const t = clamp(base + an[m] - lapse + jitter, -80, 55);
       tMon[i * 12 + m] = Math.round(t * 10) / 10; sum += tMon[i * 12 + m];
     }
     tAnn[i] = Math.round(sum / 12 * 10) / 10;

@@ -33,3 +33,11 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Built `src/glaciation.js` on `wip/glaciation` (1ff56c2): obliquity-minimum + glacial-CO2 forcing through the planet's EBM, PDD mass balance, Nye thickness, ice-albedo and height–mass-balance feedbacks, sea-level fall, exposed shelves, land bridges. Tests 30/30.
 - First runs gave almost no ice (0.07–1.12% of the surface, 0 land bridges on 20 seeds). Adding the height–mass-balance feedback and a λ = 0.8 K/(W m⁻²) sensitivity changed little. Diagnosis: climate-0.3's undamped seasonal cycle gives 46–55 °C high-latitude summers. A heat-capacity damping experiment fixed the summers but still left ≤ 2.5% ice; it was reverted because it rewrites the whole climate without verification.
 - Not deployed; production stays at hydro-0.4. Checkpoint recorded in OPERATIONAL_STATE.md; details in `docs/features/F-0005-glaciation.md` on the branch.
+
+## 2026-10-31 07:20 ET — cycle 5 (started manually by the user): F-0006 seasonal heat-capacity damping
+
+- Started from main at fd3b2f7; lock set. Plan from cycle 4: land the seasonal-cycle correction as its own verified feature before resuming `wip/glaciation`.
+- Added `scripts/climate-diagnostics.mjs` and took a 20-seed baseline on hydro-0.4. Implemented the harmonic damped EBM (ocean mixed layer, land heat capacity, maritime coupling K = 12 exp(−d/1000 km)), then monthly snow/sea-ice albedo. Tried capping orographic precipitation efficiency at 0.4 to probe the arid bias: no measurable effect, reverted.
+- The new lag test caught a sign error (ocean led the sun by 3 months); fixed before measuring. Smoke annual→January threshold lowered 1% → 0.3% with the measured reason; inspection temperatures rounded to 0.1 °C.
+- Result: high-latitude summers 37 → 14 °C, ocean range 19 → 8 K; Köppen B 62 → 59% (still failing), runoff ratio 0.61 → 0.65 (worse), winters too mild. Tests 31/31, seed report 20/20 reproducible and distinct (653–900 ms), smoke 78/78 locally.
+- `wip/glaciation` not rebased this cycle (time).

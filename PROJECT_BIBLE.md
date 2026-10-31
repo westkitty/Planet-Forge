@@ -39,3 +39,10 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - Roadmap item 3 continued: Thornthwaite PET + Fu/Budyko runoff, Priority-Flood drainage over the 100,002-cell mesh, river discharge, lakes with a closed water balance (terminal salt lakes and salt flats where evaporation exceeds inflow), drainage basins and named great rivers. Settlements now require fresh water. Details, assumptions and sources: `docs/features/F-0004-hydrology.md`.
 - World version string is `hydro-0.4` (relief and climate identical to climate-0.3 for the same seed; settlements change because sites now need water).
 - Still conceptual: steady-state annual water balance; no erosion, groundwater or seasonal flow; runoff ratio (0.52–0.70) and endorheic land share (28–76%) are higher than Earth's, inheriting the climate model's arid bias.
+
+## 2026-10-31 — World model season-0.5 (append-only)
+
+- Roadmap item 3 continued: the seasonal temperature cycle is now the heat-capacity-damped response of the energy-balance model (50 m ocean mixed layer, air-column-plus-soil land heat capacity, maritime coupling decaying inland, monthly snow and sea-ice albedo; North & Coakley 1979). Details, before/after statistics, assumptions and sources: `docs/features/F-0006-seasonal-damping.md`.
+- World version string is `season-0.5`. Relief identical to tectonic-0.2; every climate, Köppen, biome, hydrology and settlement output changes for the same seed.
+- F-0005 (ice-age glaciation) remains in progress on `wip/glaciation`; F-0006 was shipped first because F-0005 depends on it.
+- Still conceptual: arid bias persists (49–83% Köppen B vs ≈30%), runoff ratio 0.55–0.73, high-latitude winters too mild, poles warm at Earth-like tilt.
