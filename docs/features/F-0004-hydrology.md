@@ -1,6 +1,6 @@
 # F-0004 — Rivers, lakes, salt lakes and drainage basins (hydro-0.4)
 
-Status: see the deployment entry in `OPERATIONAL_STATE.md` (marked COMPLETE only after the live smoke test).
+Status: COMPLETE — deployed 2026-10-31 in 5d8ddae (Actions run 41194299227, live smoke 78/78).
 
 ## Candidate evaluation (cycle 3, 2026-10-31 06:40 ET)
 

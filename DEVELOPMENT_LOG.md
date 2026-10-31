@@ -18,3 +18,11 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Problems found and fixed during the cycle: Köppen arid threshold was first coded 10× too large (all land classed B); a coarse-mesh cell reached 99,000 mm/yr, so annual totals are now capped at 12,000 mm; stats line edit initially missed. Two moisture-parameter tuning passes reduced but did not remove the arid bias (documented).
 - Deployed: 805e02f on main, Actions run 41191529995 success, live asset hash matches local build, live smoke 70/70. F-0003 COMPLETE.
 - Pushes still required approval cards (2 of 2 plus this records push); commits did not.
+
+## 2026-10-31 06:40 ET — cycle 3 (started manually by the user): F-0004 rivers, lakes and drainage basins
+
+- Started from main at be10593; no wip checkpoint; no PAUSED/STOPPED marker. Six candidates evaluated (see `docs/features/F-0004-hydrology.md`); chose hydrology (WOW 9). Arid-bias recalibration rejected as a tuning pass, recorded as a limitation now measured by the endorheic share.
+- Added `src/hydrology.js`; `src/planet.js` now model hydro-0.4. UI: Rivers and lakes layer, Drainage basins layer, Great rivers panel, river/endorheic stats, inspection adds discharge, runoff, basin, lake; export adds rivers, lakes and hydrology columns. Settlements need fresh water and the chronicle names their river system.
+- First implementation passed tests; the main-stem walk stopped too early (37 m³/s cut-off), lowered to 10 m³/s. Runoff ratio and endorheic share are above Earth's and documented, not tuned.
+- Deployed: 5d8ddae on main, Actions run 41194299227 success, live asset hashes match local build, live smoke 78/78. F-0004 COMPLETE.
+- Branch push, the local fast-forward merge and the main push each still required an approval card; commits did not.

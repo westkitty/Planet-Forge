@@ -49,3 +49,11 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Approval test (user started this cycle early to test the updated Allow rule): `git commit` ran without a card, but every `git push` (feature branch, main) was still blocked by Auto-review ("requires asking first before making content publicly accessible") and needed a manual approval card. Unattended cycles will still stall at push.
 - Repo-local git identity set to westkitty <todeamende@protonmail.com> (matches earlier commits) because the box has no global identity.
 - Next candidates: hydrology (priority-flood drainage, rivers, lakes) using the new rainfall; stream-power erosion; wind-driven ocean currents.
+
+## 2026-10-31 06:40–06:55 ET — cycle 3: F-0004 hydro-0.4, COMPLETE (append-only log entry)
+
+- Started manually by the user. Branch `feat/hydrology` from be10593; commit 5d8ddae fast-forwarded onto main. Local: tests 28/28, seed report 20/20 reproducible/distinct (637–814 ms/seed in Node), smoke 78/78 against vite preview.
+- Actions run 41194299227 on 5d8ddae: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-bxPqxFiN.js` and `assets/index-DHmw5VkL.css`, byte-identical (sha256) to the local build of 5d8ddae. `scripts/smoke.mjs` against the live URL: 78/78 at 1280×800 and 390×844, zero console errors.
+- Approval test after the user's ask-first rule change: still blocked. `git push origin feat/hydrology` ("…a personal Auto-review block rule requires approval for repository updates that do not match the standard push exception criteria"), local `git merge --ff-only feat/hydrology` on main ("Merge the hydrology feature branch into the main branch, as required by your security rules for repository merges") and `git push origin main` ("…This requires your approval per your Auto-run rules") each needed a manual approval card. `git commit` and `gh` read calls did not. Unattended cycles will still stall at merge and push.
+- Next candidates: stream-power erosion using the new discharge; glaciation from orbital forcing; wind-driven ocean gyres; recalibrating the arid bias.
