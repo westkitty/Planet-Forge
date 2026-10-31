@@ -253,6 +253,16 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   }
   await page.evaluate(q => window.__planetForgeSky.setQuality(q), sky0.quality);
   check(p + 'sky quality tiers low/medium/high render with one catalogue', !tiers.includes('FAILED'), tiers.join(' '));
+  // PF-01: after WebGL context loss and restore the scene redraws and the re-baked sky matches the original.
+  if (vp.name === 'desktop') {
+    const skyBeforeLoss = await page.screenshot({ clip: skyClip });
+    await page.evaluate(() => { window.__lc = document.querySelector('#viewer canvas').getContext('webgl2').getExtension('WEBGL_lose_context'); window.__lc.loseContext(); });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => window.__lc.restoreContext()); await page.waitForTimeout(2000);
+    const restored = await canvasStats(page, await canvas.screenshot());
+    const skyRestore = await diff(page, skyBeforeLoss, await page.screenshot({ clip: skyClip }), 12);
+    check(p + 'WebGL context restore redraws the globe and re-bakes the same sky', restored.colours > 40 && skyRestore < 0.002, `colours=${restored.colours}, sky changed fraction=${skyRestore.toFixed(4)}`);
+  }
   check(p + 'zero console/page/network errors', errors.length === 0, errors.join(' ; '));
   await context.close();
 }

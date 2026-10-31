@@ -23,7 +23,7 @@ Screenshots (headless Chrome + SwiftShader, reduced motion, ATLAS-001): `PF-01/b
 - **No seams or pole artifacts**: noise is evaluated on 3-D directions, not on a lat/long image; the cube map uses WebGL2 seamless filtering, and the cube face edges lie 45° off the view axis, outside the default field of view (desktop corners are ≈ 39° off-axis).
 - **Compositing**: the canvas stays transparent so the page's existing CSS deep-space gradient remains the base. Sky light is added with custom blending (colour One/One, alpha accumulated as the brightest channel) so the canvas is always a valid premultiplied image.
 - **Quality tiers** (`SKY_QUALITY`): low = brightest 4,500 stars (limiting m 5.92), 2 fbm octaves, 256² cube faces; medium = 9,000 (m 6.58), 3 octaves, 512²; high = all 14,000 (m 7.0), 4 octaves + fine detail, 640². Lower tiers are a brighter limiting magnitude of the same catalogue, so star ids never change between tiers. Auto selection: `?sky=low|medium|high` overrides; ≤ 2 hardware threads → low; coarse pointer or width < 700 px → medium; otherwise high. PF-03 will replace this static choice with measured adaptation.
-- **Fallback**: after the first frame (and at bake time) the starfield checks three's program diagnostics; if a sky shader failed to link it rebuilds as a plain `PointsMaterial` star layer with no band. On `webglcontextrestored` the cube is re-baked (render-target contents do not survive context loss). The context-loss path was not exercised in a browser.
+- **Fallback**: after the first frame (and at bake time) the starfield checks three's program diagnostics; if a sky shader failed to link it rebuilds as a plain `PointsMaterial` star layer with no band. On `webglcontextrestored` the cube is re-baked (render-target contents do not survive context loss). Verified in the browser smoke test via `WEBGL_lose_context`: after lose/restore the globe redraws and the sky region is pixel-identical. The shader-failure fallback is covered by a unit test only (forcing a real link failure in Chrome was not attempted).
 - **Resource lifecycle**: `setQuality` and `dispose` free the star geometry/material, the dome geometry/material and the cube render target. Test/diagnostic handle: `window.__planetForgeSky.{info, setQuality}`; `window.__planetForge.sky` carries the catalogue info.
 
 ## Source provenance
@@ -69,7 +69,7 @@ No textures, fonts or other assets were imported. No WebGPU-only code was used.
 - Visual approximation, not an astronomical catalogue: no real stars, constellations, proper motions or extinction physics. Magnitudes, colours and densities are plausible, not measured.
 - The band's placement assumes the current fixed camera axis; if a future package lets the camera orbit freely (PF-09), the baked cube is still correct (it is a full sphere) but the band will no longer be guaranteed in view.
 - The cube bake ties sky resolution to tier: galaxies are ~2–5 texels across at medium/high and are soft by design.
-- Tier selection is static at startup (PF-03 adds measured adaptation). Context-loss re-bake is implemented but untested.
+- Tier selection is static at startup (PF-03 adds measured adaptation).
 - No twinkle or diffraction (PF-02).
 
 ## Rollback
