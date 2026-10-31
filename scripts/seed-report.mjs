@@ -37,17 +37,18 @@ const summary = {
 if (process.argv.includes('--json')) console.log(JSON.stringify({ summary, rows }, null, 2));
 else { console.table(rows.map(({ biomes, ...r }) => r)); console.log(summary); }
 
-// Tectonic model (tectonic-0.2) on the 100,002-cell geodesic mesh.
+// World model (climate-0.3: tectonic relief + climate) on the 100,002-cell geodesic mesh.
 const { geodesicMesh, createPlanet, planetSummary } = await import('../src/planet.js');
 const tm0 = performance.now(); const mesh100 = geodesicMesh(100); const meshMs = performance.now() - tm0;
 const tect = [];
 for (const seed of seeds) {
   const t1 = performance.now(); const p = createPlanet(seed, { mesh: mesh100 }); const ms = performance.now() - t1;
   const s = planetSummary(p);
-  const fp = digest({ el: Array.from(p.elevation), pl: Array.from(p.plate) });
-  const fp2 = digest((q => ({ el: Array.from(q.elevation), pl: Array.from(q.plate) }))(createPlanet(seed, { mesh: mesh100 })));
-  tect.push({ seed, hash: fp, reproducible: fp === fp2, ms: +ms.toFixed(0), plates: s.plates, land: +s.landFraction.toFixed(3), continental: +s.continentalFraction.toFixed(3), conv: s.boundaryCells.convergent, div: s.boundaryCells.divergent, trans: s.boundaryCells.transform, maxEl: s.maxElevation, minEl: s.minElevation, settlements: p.settlements.length });
+  const fp = digest({ el: Array.from(p.elevation), pl: Array.from(p.plate), r: Array.from(p.rainfall), k: Array.from(p.koppen), t: Array.from(p.temperature) });
+  const fp2 = digest((q => ({ el: Array.from(q.elevation), pl: Array.from(q.plate), r: Array.from(q.rainfall), k: Array.from(q.koppen), t: Array.from(q.temperature) }))(createPlanet(seed, { mesh: mesh100 })));
+  const landK = Object.values(s.koppenGroups).reduce((a, b) => a + b, 0), pct = g => +((s.koppenGroups[g] || 0) / landK * 100).toFixed(0);
+  tect.push({ seed, hash: fp, reproducible: fp === fp2, ms: +ms.toFixed(0), plates: s.plates, land: +s.landFraction.toFixed(3), continental: +s.continentalFraction.toFixed(3), conv: s.boundaryCells.convergent, div: s.boundaryCells.divergent, trans: s.boundaryCells.transform, maxEl: s.maxElevation, minEl: s.minElevation, tilt: p.tilt, meanT: s.meanTemperature, meanP: s.meanPrecipitation, 'A%': pct('A'), 'B%': pct('B'), 'C%': pct('C'), 'D%': pct('D'), 'E%': pct('E'), PoverE: +(p.climate.budget.precipitation / p.climate.budget.evaporation).toFixed(3), settlements: p.settlements.length });
 }
-const tsum = { cells: mesh100.count, meshMs: +meshMs.toFixed(0), reproducible: tect.filter(r => r.reproducible).length, distinct: new Set(tect.map(r => r.hash)).size, msPerSeed: { min: Math.min(...tect.map(r => r.ms)), max: Math.max(...tect.map(r => r.ms)) }, land: { min: Math.min(...tect.map(r => r.land)), max: Math.max(...tect.map(r => r.land)) }, maxElevation: Math.max(...tect.map(r => r.maxEl)), minElevation: Math.min(...tect.map(r => r.minEl)) };
+const tsum = { cells: mesh100.count, meshMs: +meshMs.toFixed(0), reproducible: tect.filter(r => r.reproducible).length, distinct: new Set(tect.map(r => r.hash)).size, msPerSeed: { min: Math.min(...tect.map(r => r.ms)), max: Math.max(...tect.map(r => r.ms)) }, land: { min: Math.min(...tect.map(r => r.land)), max: Math.max(...tect.map(r => r.land)) }, maxElevation: Math.max(...tect.map(r => r.maxEl)), minElevation: Math.min(...tect.map(r => r.minEl)), meanP: { min: Math.min(...tect.map(r => r.meanP)), max: Math.max(...tect.map(r => r.meanP)) }, aridB: { min: Math.min(...tect.map(r => r['B%'])), max: Math.max(...tect.map(r => r['B%'])) }, PoverE: { min: Math.min(...tect.map(r => r.PoverE)), max: Math.max(...tect.map(r => r.PoverE)) } };
 if (process.argv.includes('--json')) console.log(JSON.stringify({ tectonic: { summary: tsum, rows: tect } }, null, 2));
 else { console.table(tect); console.log(tsum); }

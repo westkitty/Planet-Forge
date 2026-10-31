@@ -104,7 +104,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
 
   // Layer selection
   let prev = afterZoom;
-  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'biome']) {
+  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'koppen', 'winds', 'biome']) {
     await page.selectOption('#layer', layer); await page.waitForTimeout(400);
     const s = await canvas.screenshot();
     fs.writeFileSync(path.join(outDir, `${vp.name}-3-layer-${layer}.png`), s);
@@ -113,12 +113,32 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     prev = s;
   }
 
+  // Season selector changes the temperature layer; tilt selector re-forges the climate
+  await page.selectOption('#layer', 'temperature'); await page.waitForTimeout(400);
+  const sAnn = await canvas.screenshot();
+  await page.selectOption('#season', 'jan'); await page.waitForTimeout(400);
+  const sJan = await canvas.screenshot();
+  await page.selectOption('#season', 'jul'); await page.waitForTimeout(400);
+  const sJul = await canvas.screenshot();
+  fs.writeFileSync(path.join(outDir, `${vp.name}-3-season-jul.png`), sJul);
+  const dj = await diff(page, sJan, sJul);
+  check(p + 'season selector changes temperature map', dj > 0.02 && (await diff(page, sAnn, sJan)) > 0.01, `jan->jul changed fraction=${dj.toFixed(3)}`);
+  await page.selectOption('#tilt', '60'); await page.waitForTimeout(1500);
+  const sT60 = await canvas.screenshot();
+  const tiltStats = await page.locator('#stats').innerText();
+  fs.writeFileSync(path.join(outDir, `${vp.name}-3-tilt60-jul.png`), sT60);
+  check(p + 'axial tilt selector re-forges climate', /Axial tilt: 60°/.test(tiltStats) && (await diff(page, sJul, sT60)) > 0.02, tiltStats.replace(/\n/g, ' | '));
+  await page.selectOption('#tilt', 'seed'); await page.selectOption('#season', 'annual'); await page.selectOption('#layer', 'biome'); await page.waitForTimeout(1500);
+  const sBack = await canvas.screenshot();
+  check(p + 'returning to seeded tilt restores identical globe', (await diff(page, prev, sBack)) < 0.002);
+
   // Cell inspection by click at centre (after drag + layer changes, orientation must be kept)
   await page.mouse.click(cx, cy);
   await page.waitForTimeout(200);
   const insp = await page.locator('#inspect').innerText();
   check(p + 'cell inspection on click', /° lat, .*° lon · .* m · .* °C/.test(insp), insp);
   check(p + 'inspection reports tectonic plate', /plate \d+ \((continental|oceanic), [\d.]+ cm\/yr\)/.test(insp), insp);
+  check(p + 'inspection reports Köppen class and seasonal climate', /Köppen (Af|Am|Aw|BW[hk]|BS[hk]|C[swf][abc]|D[swf][abcd]|ET|EF|Ocean) · .* °C \(Jan -?[\d.]+, Jul -?[\d.]+\) · \d+ mm\/yr/.test(insp), insp);
   check(p + 'layer change keeps globe orientation', !/^0° lat, 90° lon/.test(insp), insp);
 
   // Keyboard globe control
@@ -154,10 +174,10 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   check(p + 'all controls have accessible names', unnamed.length === 0, unnamed.join(','));
   await page.focus('body');
   const order = [];
-  for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
-  check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
+  for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
+  check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
-  check(p + 'tectonic model loaded with ~100k cells', perf && perf.version === 'tectonic-0.2' && perf.cells === 100002, JSON.stringify(perf));
+  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'climate-0.3' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 

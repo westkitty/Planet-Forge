@@ -1,16 +1,17 @@
-// Planet Forge tectonic world model (version tectonic-0.2).
+// Planet Forge world model (version climate-0.3: tectonic-0.2 relief + climate-0.3 circulation and climate).
 //
 // Conceptual approximation, not a geodynamic simulation. The planet is a
 // geodesic cell mesh (10f^2+2 cells); plates grow from seeded nuclei, each
 // plate rotates rigidly about its own Euler pole, and relief is derived from
 // the relative motion across every plate boundary plus a seafloor-age depth
 // model. Assumptions, simplifications and sources are documented in
-// docs/features/F-0002-tectonic-plates.md.
+// docs/features/F-0002-tectonic-plates.md; climate in src/climate.js and docs/features/F-0003-climate-circulation.md.
 import { hashSeed, rng } from './world.js';
+import { computeClimate, BIOMES, KOPPEN } from './climate.js';
 
-export const MODEL_VERSION = 'tectonic-0.2';
+export { BIOMES, KOPPEN };
+export const MODEL_VERSION = 'climate-0.3';
 export const EARTH_RADIUS_KM = 6371;
-export const BIOMES = ['Ocean', 'Ice', 'Tundra', 'Desert', 'Grassland', 'Rainforest', 'Boreal forest', 'Temperate forest'];
 export const BOUNDARY = ['none', 'convergent', 'divergent', 'transform'];
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 
@@ -100,7 +101,8 @@ export function gdh1Depth(age) { return age < 20 ? 2600 + 365 * Math.sqrt(age) :
 /**
  * Build a deterministic tectonic planet.
  * @param {string} seed
- * @param {{frequency?: number}} [opts] geodesic frequency; cells = 10f^2+2 (f=100 -> 100,002 cells)
+ * @param {{frequency?: number, mesh?: object, tilt?: number}} [opts] geodesic frequency (cells = 10f^2+2; f=100 -> 100,002
+ *   cells); axial tilt in degrees (default: seeded 10-35°, drawn from an independent stream so relief does not change)
  */
 export function createPlanet(seed, opts = {}) {
   const f = opts.frequency ?? 100;
@@ -239,24 +241,15 @@ export function createPlanet(seed, opts = {}) {
     elevation[i] = Math.round(clamp(h, -11000, 8800));
   }
 
-  // 7. Climate and biome proxies (same latitudinal approximation as prototype-0.1, with a 6.5 K/km lapse rate
-  //    and an elevation-based orographic dryness term). Not a circulation model.
-  const temperature = new Float64Array(n), rainfall = new Int16Array(n), biome = new Uint8Array(n), lat = new Float64Array(n), lon = new Float64Array(n);
+  // 7. Climate: energy balance, seasonal circulation, moisture advection with rain shadows, Köppen and biomes.
+  const lat = new Float64Array(n), lon = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2];
-    const la = Math.asin(clamp(y, -1, 1)), lo = Math.atan2(z, x), latD = la * 180 / Math.PI;
-    lat[i] = Math.round(latD * 100) / 100; lon[i] = Math.round(lo * 18000 / Math.PI) / 100;
-    const el = elevation[i];
-    const t = clamp(30 - 58 * Math.pow(Math.abs(latD) / 90, 1.45) - Math.max(0, el) * 0.0065 + 3 * fbm(x * 2, y * 2, z * 2, noiseSeed ^ 0x77), -65, 47);
-    temperature[i] = Math.round(t * 10) / 10;
-    const wetBelt = 36 + 30 * Math.cos(la * 4.4) + 30 * Math.cos(la * 7) + 22 * fbm(x * 2.5, y * 2.5, z * 2.5, noiseSeed ^ 0x99);
-    const oro = el > 2500 ? 0.45 : el > 1200 ? 0.75 : 1;
-    const r = Math.max(0, Math.round(wetBelt * oro * (el < 0 ? 1.15 : 1)));
-    rainfall[i] = r;
-    let bm = 0;
-    if (el >= 0) { if (t < -8) bm = 1; else if (t < 3) bm = 2; else if (r < 23) bm = 3; else if (r < 43) bm = 4; else if (t > 22 && r > 76) bm = 5; else if (t < 13) bm = 6; else bm = 7; }
-    biome[i] = bm;
+    lat[i] = Math.round(Math.asin(clamp(y, -1, 1)) * 18000 / Math.PI) / 100; lon[i] = Math.round(Math.atan2(z, x) * 18000 / Math.PI) / 100;
   }
+  const tilt = opts.tilt ?? Math.round((10 + rng(s32 ^ 0x7117c0de)() * 25) * 100) / 100;
+  const climate = computeClimate({ mesh, elevation, lat, spacingKm, noise: i => fbm(P[3 * i] * 2, P[3 * i + 1] * 2, P[3 * i + 2] * 2, noiseSeed ^ 0x77) }, tilt);
+  const { temperature, rainfall, biome } = climate;
 
   // 8. Settlements on habitable land cells, with tectonic setting recorded.
   const names = ['Aster', 'Vela', 'Orin', 'Keth', 'Nadir', 'Sora', 'Mira', 'Eris'];
@@ -265,21 +258,22 @@ export function createPlanet(seed, opts = {}) {
     attempts++;
     const i = Math.floor(random() * n);
     const el = elevation[i];
-    if (!(el > 0 && el < 1800 && temperature[i] > 3 && rainfall[i] > 30)) continue;
+    if (!(el > 0 && el < 1800 && temperature[i] > 3 && rainfall[i] > 300)) continue;
     const far = settlements.every(st => { const j = st.cell; return P[3 * i] * P[3 * j] + P[3 * i + 1] * P[3 * j + 1] + P[3 * i + 2] * P[3 * j + 2] < Math.cos(24 * Math.PI / 180); });
     if (!far) continue;
     const setting = src[i] >= 0 && dist[i] * spacingKm < 500 ? BOUNDARY[boundary[src[i]]] + ' margin' : 'plate interior';
-    settlements.push({ name: names[settlements.length], cell: i, lat: Math.round(lat[i] * 10) / 10, lon: Math.round(lon[i] * 10) / 10, founded: Math.floor(random() * 1400) + 100, biome: BIOMES[biome[i]], setting });
+    settlements.push({ name: names[settlements.length], cell: i, lat: Math.round(lat[i] * 10) / 10, lon: Math.round(lon[i] * 10) / 10, founded: Math.floor(random() * 1400) + 100, biome: BIOMES[biome[i]], climate: KOPPEN[climate.koppen[i]], setting });
   }
-  const timeline = settlements.map(t => ({ year: t.founded, event: `${t.name} founded in ${t.biome.toLowerCase()} (${t.setting})` })).sort((a, b) => a.year - b.year || a.event.localeCompare(b.event));
+  const timeline = settlements.map(t => ({ year: t.founded, event: `${t.name} founded in ${t.biome.toLowerCase()} (${t.climate} climate, ${t.setting})` })).sort((a, b) => a.year - b.year || a.event.localeCompare(b.event));
 
-  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, temperature, rainfall, biome, lat, lon, settlements, timeline };
+  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, tilt, climate, temperature, rainfall, biome, koppen: climate.koppen, lat, lon, settlements, timeline };
 }
 
 /** Plain-object view of one cell, used for inspection and export. */
 export function cellInfo(planet, i) {
   const p = planet.plates[planet.plate[i]];
-  const info = { cell: i, lat: planet.lat[i], lon: planet.lon[i], elevation: planet.elevation[i], temperature: planet.temperature[i], rainfall: planet.rainfall[i], biome: BIOMES[planet.biome[i]], plate: p.id, crust: p.crust, boundary: BOUNDARY[planet.boundary[i]] };
+  const tm = Array.from(planet.climate.temperatureMonthly.subarray(12 * i, 12 * i + 12));
+  const info = { cell: i, lat: planet.lat[i], lon: planet.lon[i], elevation: planet.elevation[i], temperature: planet.temperature[i], temperatureJan: tm[0], temperatureJul: tm[6], rainfall: planet.rainfall[i], koppen: KOPPEN[planet.koppen[i]], biome: BIOMES[planet.biome[i]], plate: p.id, crust: p.crust, boundary: BOUNDARY[planet.boundary[i]] };
   if (!planet.continental[i]) info.seafloorAgeMyr = Math.round(planet.seafloorAge[i]);
   return info;
 }
@@ -288,5 +282,7 @@ export function cellInfo(planet, i) {
 export function planetSummary(planet) {
   const n = planet.cellCount; let land = 0; const bt = [0, 0, 0, 0]; let maxEl = -1e9, minEl = 1e9;
   for (let i = 0; i < n; i++) { if (planet.elevation[i] >= 0) land++; bt[planet.boundary[i]]++; maxEl = Math.max(maxEl, planet.elevation[i]); minEl = Math.min(minEl, planet.elevation[i]); }
-  return { cells: n, plates: planet.plates.length, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
+  const kc = {}; let pSum = 0, tSum = 0;
+  for (let i = 0; i < n; i++) { pSum += planet.rainfall[i]; tSum += planet.temperature[i]; if (planet.koppen[i]) { const k = KOPPEN[planet.koppen[i]][0]; kc[k] = (kc[k] || 0) + 1; } }
+  return { cells: n, plates: planet.plates.length, tilt: planet.tilt, meanTemperature: Math.round(tSum / n * 10) / 10, meanPrecipitation: Math.round(pSum / n), koppenGroups: kc, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
 }
