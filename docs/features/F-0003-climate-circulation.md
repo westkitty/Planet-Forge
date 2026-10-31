@@ -1,6 +1,6 @@
 # F-0003 — Seasonal climate, circulation, moisture transport and rain shadows (climate-0.3)
 
-Status: see the dated entries in OPERATIONAL_STATE.md and DEVELOPMENT_LOG.md (COMPLETE only after deployment is verified).
+Status: COMPLETE — deployed 2026-10-31 in 805e02f (Actions run 41191529995, live smoke 70/70).
 
 ## Candidate evaluation (cycle 2, 2026-10-31 05:40 ET)
 

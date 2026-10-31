@@ -27,3 +27,9 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - Roadmap item 2 started: the planet is now a geodesic mesh of 100,002 cells (frequency 100) with 9–14 seeded rigid plates moving about Euler poles; relief derives from boundary type (convergent, divergent, transform) and a GDH1 seafloor age-depth model. Details, assumptions and sources: `docs/features/F-0002-tectonic-plates.md`.
 - World version string is `tectonic-0.2`. `prototype-0.1` (`src/world.js`) is retained for reference and its tests still run.
 - Still conceptual: climate, rainfall and biomes; plates are a kinematic snapshot, not time-integrated.
+
+## 2026-10-31 — World model climate-0.3 (append-only)
+
+- Roadmap item 3 started: seeded axial tilt (10–35°, user-overridable) drives monthly insolation, a zonal energy-balance model, a prescribed seasonal three-cell circulation and steady-state moisture transport over the 100,002-cell mesh; rain shadows emerge downwind of tectonic mountains. Köppen–Geiger (30 classes) and 11 Whittaker-inspired biomes replace the old biome proxy. Details, assumptions and sources: `docs/features/F-0003-climate-circulation.md`.
+- World version string is `climate-0.3` (relief identical to tectonic-0.2 for the same seed).
+- Still conceptual: winds are prescribed, not solved; no ocean currents, hydrology or erosion; land is drier than Earth (53–81% Köppen B vs ≈30%).

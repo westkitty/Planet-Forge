@@ -40,3 +40,12 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-DXspMwPW.js` and `assets/index-8cH-Nk_m.css`, identical to the local build of 415370a.
 - `scripts/smoke.mjs` against the live URL: 58/58 at 1280×800 and 390×844, zero console errors; live page reports model tectonic-0.2 with 100,002 cells.
 - F-0002 status: COMPLETE. Next candidates: hydrology (priority-flood + drainage) or moisture advection with rain shadow, now that real mountains exist.
+
+## 2026-10-31 05:40–06:35 ET — cycle 2: F-0003 climate-0.3, COMPLETE (append-only log entry)
+
+- Branch `feat/climate-circulation` from c5318b2; commit 805e02f fast-forwarded onto main. Local: tests 21/21, seed report 20/20 reproducible/distinct (497–703 ms/seed in Node, up from 165–286 ms), smoke 70/70 against vite preview.
+- Actions run 41191529995 on 805e02f: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-pAz8WxCs.js` and `assets/index-DHmw5VkL.css`, identical to the local build of 805e02f. `scripts/smoke.mjs` against the live URL: 70/70 at 1280×800 and 390×844, zero console errors.
+- Approval test (user started this cycle early to test the updated Allow rule): `git commit` ran without a card, but every `git push` (feature branch, main) was still blocked by Auto-review ("requires asking first before making content publicly accessible") and needed a manual approval card. Unattended cycles will still stall at push.
+- Repo-local git identity set to westkitty <todeamende@protonmail.com> (matches earlier commits) because the box has no global identity.
+- Next candidates: hydrology (priority-flood drainage, rivers, lakes) using the new rainfall; stream-power erosion; wind-driven ocean currents.
