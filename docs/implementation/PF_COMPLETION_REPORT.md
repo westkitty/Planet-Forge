@@ -2,7 +2,7 @@
 
 **Evidence cutoff:** 2026-10-31, release candidate `4fb4cea4892ed36460a9b82661c1927ae2dd44b9` on `main`.
 **Site:** https://westkitty.github.io/Planet-Forge/
-**Release status when this report was drafted:** source merged; production deployment and asset hashes verified; final live-browser suite was still running. See the [progress ledger](PF_MASTER_PROGRESS.md) and the GitHub Actions status below for the final outcome. **Do not infer completion from this draft alone.**
+**Verified release status:** all 33 PF first-implementation packages merged and deployed; **158/158 live-site browser checks passed** on run 41233978729 at the exact application revision `4fb4cea`. See the [progress ledger](PF_MASTER_PROGRESS.md). This is evidence of release and smoke-tested functionality, not a claim of full real-device or human-playtest quality.
 
 ## 1. Verified release identity
 
@@ -35,7 +35,7 @@ Implementation details, game rules and their limitations: [M1](../features/M1-pl
 - `scripts/smoke.mjs` against Vite preview: **158/158 checks passed** at desktop and mobile viewports.
 - GitHub Pages deployment: passed.
 - Production JS/CSS served by the public site: byte-hash comparison with the CI build passed.
-- Live-site browser smoke: **PENDING at report creation**; confirm the `live-verify` job before promoting the last seven packages.
+- Live-site browser smoke: **158/158 PASS**, directly verified from the completed `live-verify` job logs for run 41233978729 (released application SHA `4fb4cea`).
 
 The browser suite covers actual Play-tab operation of every newly added mode in addition to seed determinism, scientific layers, touch input, export, layout, sky render and major world transitions. It is automated acceptance evidence, not independent human playtesting.
 
@@ -82,10 +82,12 @@ The full PF roadmap was implemented as 33 **functional first-slice systems**. Th
 
 Treat these as explicit release-quality limitations, not as grounds to rewrite or discard the verified 33-system application.
 
-## 7. Release closure protocol
+## 7. Release closure and remaining quality work
 
-When run 41233978729 succeeds with `live-verify` passing its public browser checks, record the exact count and update the last seven package rows in `PF_MASTER_PROGRESS.md` to `LIVE_VERIFIED`, citing the final run. If it fails, leave those rows at `DEPLOYED` (or `BLOCKED` where appropriate) and repair the actual defect before claiming live verification.
+Run 41233978729 completed **successfully** on `2026-10-31T19:38:12Z`: verify 95/95 unit and 158/158 preview, deploy success, public assets byte-identical to the CI build, and public browser smoke **158/158 PASS**. All 33 package rows are now `LIVE_VERIFIED` against their deployed milestone revisions. The original program is implemented as integrated first-slice experiences and public-site automated acceptance has passed.
 
-The package-level ledger, this report, and the repository's operational state must match the latest GitHub `main` and deployed build.
+**Outstanding independent quality evidence is tracked in [GitHub issue #8](https://github.com/westkitty/Planet-Forge/issues/8)**: real-device performance and thermals, reproduction of the reported mobile heap excursion, and human gameplay/accessibility review. This record does not upgrade unmeasured properties to verified.
+
+A subsequent documentation-only merge may advance `main` without altering application JS/CSS; keep the tested application SHA and the documentation merge SHA distinguishable.
 
 **Final distinction:** “33 packages merged and deployed” is a repository/release fact; “33 playable first implementations checked on the public site” requires a successful live browser job; “commercially polished, comprehensively playtested, scientifically coupled AAA simulation” is not established by these checks.
