@@ -37,7 +37,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const page = await context.newPage();
   await page.addInitScript(instrument);
   const t0 = Date.now();
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(url, { waitUntil: 'networkidle' }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
   await page.locator('#viewer canvas').waitFor({ state: 'visible' });
   await page.waitForTimeout(1500);
   const loadMs = Date.now() - t0;
