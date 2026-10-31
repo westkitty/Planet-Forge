@@ -91,3 +91,15 @@ Run 41233978729 completed **successfully** on `2026-10-31T19:38:12Z`: verify 95/
 A subsequent documentation-only merge may advance `main` without altering application JS/CSS; keep the tested application SHA and the documentation merge SHA distinguishable.
 
 **Final distinction:** “33 packages merged and deployed” is a repository/release fact; “33 playable first implementations checked on the public site” requires a successful live browser job; “commercially polished, comprehensively playtested, scientifically coupled AAA simulation” is not established by these checks.
+
+## 8. Follow-up QA pass (2026-10-31, after release closure)
+
+This section updates sections 4 and 6 with new evidence. The earlier text is kept unchanged for the record.
+
+- **Raw final performance measurements are now committed.** The files are `docs/implementation/perf-final-high.json` and `perf-final-low.json`. Both come from `scripts/perf.mjs`, run on headless SwiftShader against the final application tree. The numbers in section 4 come from these files. They are still software-renderer measurements, not real-GPU frame rates.
+- **The 107 MB heap excursion does not reproduce once garbage collection is forced.** The new tool is `scripts/memprobe.mjs`. It runs at a 390×844 viewport on the medium tier and forces garbage collection twice before every reading. Results:
+  - **Phase 1:** 24 cycles of world regeneration, layer switches and quality-tier switches. JS heap ranged from 38.5 to 40.8 MB with no upward trend. Live WebGL buffers, textures and programs stayed at exactly 28 / 6 / 7 the whole time.
+  - **Phase 2:** 4 cycles of heavy modes: rover descent, driving and return; the intervention lab, which builds a second planet; River Kingdoms; and Deep Time. Heap was 41.1–41.2 MB. The first cycle added 4 buffers and 2 shader programs, which then stayed constant. These are three.js's one-time objects for the local-scene materials, reused afterwards, not a growing leak.
+  - **Conclusion:** no leak was found in the exercised paths. The earlier 107 MB reading came from `scripts/perf.mjs`, which reads the heap without forcing garbage collection, so it most likely captured garbage that had not yet been collected. Real-device long-session behaviour is still unverified (issue #8).
+- **Portrait framing fix.** On portrait screens (width/height < 0.75), the camera now fits the planet's edge to the screen width instead of keeping a 13 % margin. The globe's diameter on a 390 × 844 phone grows by about 13 %, and the whole planet remains visible. Landscape framing is unchanged. Before/after screenshots: `docs/implementation/portrait-before.jpg` and `portrait-after.jpg`.
+- **Still open, and cannot be done from the agent environment:** real-device GPU and thermal measurements, and human playtesting of every mode. These remain tracked in issue #8.

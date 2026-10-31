@@ -279,7 +279,10 @@ void main() {
     if (!width || !height) return;
     const halfVertical = THREE.MathUtils.degToRad(camera.fov / 2);
     const halfHorizontal = Math.atan(Math.tan(halfVertical) * width / height);
-    const base = Math.max(2.98, 1.13 / Math.sin(Math.min(halfVertical, halfHorizontal)));
+    // Portrait screens: fit the planet limb to the width (the thin atmosphere rim may crop) so the globe uses more of
+    // the tall viewer; landscape keeps the 13 % margin around the atmosphere.
+    const margin = width / height < .75 ? 1.0 : 1.13;
+    const base = Math.max(2.98, margin / Math.sin(Math.min(halfVertical, halfHorizontal)));
     camera.position.z = base * zoomScale;
     starfield.follow(camera);
   }
