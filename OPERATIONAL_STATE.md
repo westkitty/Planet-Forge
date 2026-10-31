@@ -95,3 +95,10 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Actions run 41199283820 on b7e95a1: verify success (tests, build, smoke in CI), deploy success.
 - Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-DrGE_5jP.js` and `assets/index-DHmw5VkL.css`, byte-identical (sha256) to the local build of b7e95a1. `scripts/smoke.mjs` against the live URL: 78/78 at 1280×800 and 390×844, zero console errors; live page reports eddy-0.6 with 100,002 cells (in-browser generate + render 959–998 ms for ATLAS-001).
 - Next: resume F-0005 on `wip/glaciation-season` on top of eddy-0.6 (needs the ~1 s budget), then the remaining arid bias (winds/advection) as its own feature.
+
+## 2026-10-31 08:16 ET — cycle 6: F-0005 glaciation re-measured on eddy-0.6, WIP CHECKPOINT (append-only log entry)
+
+- Production unchanged by this entry: main and the live site stay at eddy-0.6 (b7e95a1 code).
+- New branch `wip/glaciation-eddy` (42f52ae, pushed): main at 7fc4f0c with `wip/glaciation-season` merged in (merge, not rebase; older branches untouched). Version `glacial-0.7`; tests 37/37. Build, smoke and seed report not run on the branch; no globe layer or export columns yet.
+- 20 seeds: glacial ice 0.34–9.02% of the surface (mean 2.48%; was 0.27–4.25% on season-0.5), sea-level fall 0.6–141.9 m (was 0.5–92.7), 1 land bridge (DET-15; was 0), 776–1028 ms per world in Node (2 seeds over the ~1 s budget). Not shippable: 11 of 20 seeds fall < 5 m, and generation is over budget.
+- Next: speed (glaciation adds ~150 ms; reuse the climate EBM and the transport for the glacial state), then the remaining high-latitude dryness and warm poles; ship F-0005 only when sea fall is Earth-like on typical seeds and generation stays ≤ ~1 s.
