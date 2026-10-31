@@ -1,0 +1,115 @@
+{
+  "label": "pf01-baked",
+  "url": "http://localhost:4173/Planet-Forge/",
+  "when": "2026-10-31T16:23:10.346Z",
+  "viewports": {
+    "desktop": {
+      "loadMs": 4445,
+      "frame": {
+        "frames": 121,
+        "medianMs": 183.4,
+        "p95Ms": 366.8,
+        "meanMs": 190.63,
+        "drawsPerFrame": 5,
+        "primitivesPerFrame": 239289
+      },
+      "gpuBefore": {
+        "draws": 676,
+        "primitives": 31815200,
+        "buffers": 21,
+        "textures": 5,
+        "programs": 5,
+        "bufferBytes": 7000108,
+        "heapMB": 55.7
+      },
+      "gpuAfterCycles": {
+        "draws": 916,
+        "primitives": 43206944,
+        "buffers": 21,
+        "textures": 5,
+        "programs": 5,
+        "bufferBytes": 63028024,
+        "heapMB": 78.4
+      },
+      "leak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0
+      },
+      "sky": {
+        "seed": "PLANET-FORGE-SKY-1",
+        "cubeFace": 640,
+        "signature": "b0d0aa15",
+        "catalogue": 14000,
+        "drawn": 14000,
+        "quality": "high",
+        "fallback": false,
+        "galaxies": 10,
+        "limitingMagnitude": 7
+      },
+      "skyTierLeak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0,
+        "heapMB": [
+          78.4,
+          47.2
+        ]
+      }
+    },
+    "mobile": {
+      "loadMs": 3733,
+      "frame": {
+        "frames": 121,
+        "medianMs": 150,
+        "p95Ms": 300.1,
+        "meanMs": 153.44,
+        "drawsPerFrame": 5,
+        "primitivesPerFrame": 234248
+      },
+      "gpuBefore": {
+        "draws": 691,
+        "primitives": 31842184,
+        "buffers": 21,
+        "textures": 5,
+        "programs": 5,
+        "bufferBytes": 6840108,
+        "heapMB": 57.3
+      },
+      "gpuAfterCycles": {
+        "draws": 976,
+        "primitives": 45135052,
+        "buffers": 21,
+        "textures": 5,
+        "programs": 5,
+        "bufferBytes": 63871272,
+        "heapMB": 80.8
+      },
+      "leak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0
+      },
+      "sky": {
+        "seed": "PLANET-FORGE-SKY-1",
+        "cubeFace": 512,
+        "signature": "b0d0aa15",
+        "catalogue": 14000,
+        "drawn": 9000,
+        "quality": "medium",
+        "fallback": false,
+        "galaxies": 10,
+        "limitingMagnitude": 6.58
+      },
+      "skyTierLeak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0,
+        "heapMB": [
+          80.8,
+          46.8
+        ]
+      }
+    }
+  }
+}

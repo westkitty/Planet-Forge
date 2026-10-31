@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createStarfield } from './starfield.js';
 
 // Procedural, local-only presentation. No textures, external assets or simulation mutations.
 export function createPresentation(scene, camera, renderer, baseMesh) {
@@ -17,29 +18,10 @@ export function createPresentation(scene, camera, renderer, baseMesh) {
   scene.add(bounce);
   const sunDir = sunlight.position.clone().normalize();
 
-  // A sparse fixed stellar field gives scale without competing with the planet.
-  let rng = 0x8badf00d;
-  const random = () => { rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0; return rng / 4294967296; };
-  const starPositions = new Float32Array(1100 * 3);
-  const starColors = new Float32Array(1100 * 3);
-  const starColor = new THREE.Color();
-  for (let i = 0; i < 1100; i++) {
-    const y = random() * 2 - 1, angle = random() * Math.PI * 2;
-    const rad = Math.sqrt(1 - y * y), distance = 45 + random() * 22;
-    starPositions[3 * i] = Math.cos(angle) * rad * distance;
-    starPositions[3 * i + 1] = y * distance;
-    starPositions[3 * i + 2] = Math.sin(angle) * rad * distance;
-    starColor.setHSL(0.53 + random() * 0.13, 0.12 + random() * 0.27, 0.4 + random() * 0.36);
-    starColors[3 * i] = starColor.r;
-    starColors[3 * i + 1] = starColor.g;
-    starColors[3 * i + 2] = starColor.b;
-  }
-  const starsGeometry = new THREE.BufferGeometry();
-  starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  starsGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-  const starsMaterial = new THREE.PointsMaterial({ size: 0.18, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.85, depthWrite: false });
-  const stars = new THREE.Points(starsGeometry, starsMaterial);
-  scene.add(stars);
+  // PF-01: deterministic galactic starfield (catalogue, Milky-Way band, dust, distant galaxies); sky frame is fixed,
+  // so stars stay put while the globe rotates. Replaces the earlier 1,100-point random field.
+  const starfield = createStarfield(scene, renderer);
+  let shadersChecked = false;
 
   const atmosphereMaterial = new THREE.ShaderMaterial({
     uniforms: { uSun: { value: sunDir } },
@@ -143,6 +125,7 @@ export function createPresentation(scene, camera, renderer, baseMesh) {
     const halfHorizontal = Math.atan(Math.tan(halfVertical) * width / height);
     const base = Math.max(2.98, 1.13 / Math.sin(Math.min(halfVertical, halfHorizontal)));
     camera.position.z = base * zoomScale;
+    starfield.follow(camera);
   }
   function zoom(direction, width, height) {
     zoomScale = THREE.MathUtils.clamp(zoomScale + direction * 0.085, 0.81, 2.4);
@@ -151,8 +134,14 @@ export function createPresentation(scene, camera, renderer, baseMesh) {
   function advance(dt) {
     if (clouds?.visible) clouds.rotation.y += dt * 0.005;
   }
-  function dispose() {
-    starsGeometry.dispose(); starsMaterial.dispose(); atmosphereGeometry.dispose(); atmosphereMaterial.dispose();
+  // Called once after the first frame has been drawn: a sky shader that failed to link falls back to plain points.
+  function afterFirstFrame() {
+    if (shadersChecked) return;
+    shadersChecked = true;
+    starfield.checkShaders();
   }
-  return { radius, shapeTerrain, installClouds, showClouds, fitCamera, zoom, advance, dispose };
+  function dispose() {
+    starfield.dispose(); atmosphereGeometry.dispose(); atmosphereMaterial.dispose();
+  }
+  return { radius, shapeTerrain, installClouds, showClouds, fitCamera, zoom, advance, afterFirstFrame, sky: starfield, dispose };
 }

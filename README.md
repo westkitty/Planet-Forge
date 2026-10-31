@@ -18,6 +18,8 @@ npm run dev
 - `docs/features/` feature records with assumptions, limitations and sources
 - `DEVELOPMENT_LOG.md` append-only cycle log
 - `src/main.js` Three.js globe, controls and data inspection
+- `src/presentation.js` lighting, atmosphere, clouds, terrain relief; `src/starfield.js` deterministic galactic starfield (PF-01)
+- `scripts/perf.mjs` matched WebGL frame/resource probe
 - `src/style.css` responsive presentation
 - `.github/workflows/deploy.yml` Pages CI/CD (activate Pages > GitHub Actions in repository Settings)
 - `OPERATIONAL_STATE.md` verified vs unverified implementation state

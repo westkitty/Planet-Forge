@@ -1,0 +1,77 @@
+{
+  "label": "baseline-d26a030",
+  "url": "http://localhost:4173/Planet-Forge/",
+  "when": "2026-10-31T16:00:31.401Z",
+  "viewports": {
+    "desktop": {
+      "loadMs": 4036,
+      "frame": {
+        "frames": 121,
+        "medianMs": 166.7,
+        "p95Ms": 316.7,
+        "meanMs": 169,
+        "drawsPerFrame": 4,
+        "primitivesPerFrame": 224057
+      },
+      "gpuBefore": {
+        "draws": 536,
+        "primitives": 29777480,
+        "buffers": 15,
+        "textures": 4,
+        "programs": 4,
+        "bufferBytes": 6526060,
+        "heapMB": 59.2
+      },
+      "gpuAfterCycles": {
+        "draws": 736,
+        "primitives": 40896252,
+        "buffers": 15,
+        "textures": 4,
+        "programs": 4,
+        "bufferBytes": 62863816,
+        "heapMB": 80.7
+      },
+      "leak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0
+      },
+      "sky": null
+    },
+    "mobile": {
+      "loadMs": 3646,
+      "frame": {
+        "frames": 121,
+        "medianMs": 133.4,
+        "p95Ms": 283.3,
+        "meanMs": 142.97,
+        "drawsPerFrame": 4,
+        "primitivesPerFrame": 224057
+      },
+      "gpuBefore": {
+        "draws": 544,
+        "primitives": 30221920,
+        "buffers": 15,
+        "textures": 4,
+        "programs": 4,
+        "bufferBytes": 6526060,
+        "heapMB": 56.4
+      },
+      "gpuAfterCycles": {
+        "draws": 768,
+        "primitives": 42695700,
+        "buffers": 15,
+        "textures": 4,
+        "programs": 4,
+        "bufferBytes": 63377152,
+        "heapMB": 75.3
+      },
+      "leak": {
+        "buffers": 0,
+        "textures": 0,
+        "programs": 0
+      },
+      "sky": null
+    }
+  }
+}

@@ -69,3 +69,9 @@ Preserve functional baseline. Build/test before merge. Record all algorithm chan
 - No remote runtime textures or new dependencies. Preserve low-memory device support through capped device pixel ratio and procedural lightweight geometry. Reuse the globe geometry across layer changes and dispose replacement world/annotation resources.
 - Preserve mouse drag, wheel, globe keyboard navigation, centre inspection, and reduced-motion handling. Touch pinch zoom is added; multi-touch must not trigger an accidental cell inspection.
 - The user explicitly resumed the narrowly scoped visual work after the prior pause. This does not enable the previously paused hourly autonomous feature executor.
+
+## 2026-10-31 — Sky contract (PF-01, append-only)
+
+- The sky is presentation only and owned by `src/starfield.js` inside the existing presentation lifecycle: one renderer, one animation loop, no world-data reads or writes.
+- Sky seed `PLANET-FORGE-SKY-1` is independent of the world seed. Star ids are catalogue indices of the full 14,000-star catalogue; quality tiers only change the limiting magnitude, never ids. Changing the catalogue algorithm changes the signature and must be treated as a sky-version change (future constellations depend on it).
+- The sky frame is fixed in scene coordinates; only the globe rotates. Generated stars, band and galaxies are illustrative, not an astronomical catalogue.
