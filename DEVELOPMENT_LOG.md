@@ -63,3 +63,4 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Calibration: steps 24/36/40/44/48 at Earth obliquity gave a median fall of 66/100/110/116/127 m; chose 48. At seeded obliquity the results are bimodal (documented).
 - On-demand getter; interglacial fingerprint identical to main; tests 40/40 (new: EBM linearity, on-demand isolation, mass/sea-level bookkeeping, gazetteer, 20-seed Earth-obliquity bar); seed report 20/20 reproducible and distinct (713–990 ms with the glacial state); local smoke 86/86 (new: era toggle, gazetteer panel, Ice age layer, return to today, export columns, era keyboard reach).
 - Order note: the tests were written alongside the implementation, not strictly before it.
+- 08:40–09:00 ET: merged into main as 462742f; Actions 41202123700 verify + deploy success; live asset hashes match the local build; live smoke 86/86. F-0005 COMPLETE. Then the project was PAUSED by the user (no further work today).

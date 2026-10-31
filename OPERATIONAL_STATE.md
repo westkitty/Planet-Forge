@@ -102,3 +102,12 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - New branch `wip/glaciation-eddy` (42f52ae, pushed): main at 7fc4f0c with `wip/glaciation-season` merged in (merge, not rebase; older branches untouched). Version `glacial-0.7`; tests 37/37. Build, smoke and seed report not run on the branch; no globe layer or export columns yet.
 - 20 seeds: glacial ice 0.34–9.02% of the surface (mean 2.48%; was 0.27–4.25% on season-0.5), sea-level fall 0.6–141.9 m (was 0.5–92.7), 1 land bridge (DET-15; was 0), 776–1028 ms per world in Node (2 seeds over the ~1 s budget). Not shippable: 11 of 20 seeds fall < 5 m, and generation is over budget.
 - Next: speed (glaciation adds ~150 ms; reuse the climate EBM and the transport for the glacial state), then the remaining high-latitude dryness and warm poles; ship F-0005 only when sea fall is Earth-like on typical seeds and generation stays ≤ ~1 s.
+
+## 2026-10-31 08:14–09:00 ET — cycle 7 (manual, "Finish the ice age"): F-0005 glacial-0.8, COMPLETE (append-only log entry)
+
+- Branch `feat/glaciation` (commit 5d5f98b, from `wip/glaciation-eddy` 42f52ae) was merged into main with `--no-ff` as 462742f. The only conflict was in DEVELOPMENT_LOG.md; both entries were kept in order. Pushed with no approval card.
+- Local: tests 40/40; seed report 20/20 reproducible and distinct (713–990 ms per seed including the glacial state); smoke 86/86 against vite preview; the interglacial 20-seed fingerprint is identical to eddy-0.6.
+- Actions run 41202123700 on 462742f: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-DkMP1l-L.js` and `assets/index-DHmw5VkL.css`, byte-identical (sha256) to the local build of 462742f. `scripts/smoke.mjs` against the live URL: 86/86 at 1280×800 and 390×844, zero console errors. The page reports glacial-0.8 with 100,002 cells. In-browser forge + render for ATLAS-001 took 1,061–1,066 ms (eddy-0.6 live: 959–998 ms; not investigated). The glacial state on demand took 658–662 ms.
+- Bar at Earth obliquity, 20 seeds: median sea fall 127.1 m, ice 5.28 %, cooling 5.45 K, land bridges on 5 seeds. All pass. At seeded obliquity: median 74.8 m, 3.85 %, 4.96 K, 4 seeds with a bridge, bimodal by obliquity (documented in F-0005).
+- PAUSED by the user on 2026-10-31 after the ice age; no more Planet Forge work today. `.dev-state/PAUSED` created; hourly routine paused by the parent.
