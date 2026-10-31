@@ -75,3 +75,11 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - Before/after (20 seeds): warmest month of land at 60–75° 37.4 → 13.7 °C, ocean range at 50–60° 19.3 → 7.9 K, polar annual mean −2.7 → −5.1 °C, Köppen B 62.0 → 59.2% (still ≈2× Earth), runoff ratio 0.61 → 0.65 (worse), endorheic land 42.4 → 39.3%. Full tables: `docs/features/F-0006-seasonal-damping.md`.
 - Feature numbering: F-0005 stays reserved for the in-progress glaciation on `wip/glaciation`.
 - Next: resume F-0005 on top of season-0.5 (the orbital signal must use the damped seasonal response); then the arid bias (moisture supply/transport) as its own feature.
+
+## 2026-10-31 07:45 ET — cycle 5: F-0005 glaciation re-measured on season-0.5, WIP CHECKPOINT (append-only log entry)
+
+- Production unchanged by this entry: main and the live site stay at season-0.5 (126b00c code).
+- New branch `wip/glaciation-season` (98e7f52, pushed without an approval card): main at ecba248 with `wip/glaciation` merged in (merge, not rebase; the old branch is untouched). Orbital forcing now uses the damped seasonal response; version `glacial-0.6`; tests 33/33. Build, smoke and seed report not run on the branch.
+- 20 seeds: glacial ice 0.27–4.25% of the surface (was 0.07–1.12%), sea-level fall 0.5–92.7 m (was 0.3–11.9), 0 land bridges, 773–1085 ms per world (over the ~1 s budget). Not shippable.
+- Diagnosis: almost no precipitation poleward of 70° (land 4 mm/yr at 70–80°, Earth ≈ 200–300) because moisture transport is purely advective with no eddy diffusion. Details in `docs/features/F-0005-glaciation.md` on the branch.
+- Next: eddy (diffusive) poleward moisture transport as its own verified feature (also targets the arid bias); then resume `wip/glaciation-season`.
