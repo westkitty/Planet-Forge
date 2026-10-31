@@ -10,7 +10,8 @@ import { createOverlays } from './overlays.js';
 import { createGameStore } from './gameState.js';
 import { createObservatoryUI } from './observatoryUI.js';
 import { tourStops, facingRotation, ROUTES, INVESTIGATIONS } from './observatory.js';
-import { pickSurface, cellDir } from './geo.js';
+import { pickSurface, cellDir, nearestCell, latLonToDir } from './geo.js';
+import { progress as surveyProgress } from './gameplay/survey.js';
 const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt'), eraSelect = document.querySelector('#era');
 let planet, mesh, renderedPlanet = null, annotation = null, zonalRain, coastalMask, disposed = false, glacialMs = null;
 const FREQUENCY = 100; // 10f^2+2 = 100,002 cells
@@ -40,7 +41,9 @@ function glacialColor(i, layer, c, g) {
   return el < 0 ? c.setRGB(.05, .1 + Math.max(0, el + 6000) / 60000, .22 + Math.max(0, el + 6000) / 40000) : c.setHSL(.25, .12, Math.min(.6, .3 + el / 12000));
 }
 const glacialView = () => eraSelect.value === 'glacial' || layerSelect.value === 'glacial';
+let fogMask = null; // PF-17 survey mode: unmapped cells are drawn as fog (presentation only)
 function color(i, layer, c) {
+  if (fogMask && !fogMask[i]) return c.setRGB(.03, .045, .06);
   const el = planet.elevation[i];
   if (glacialView() && glacialColor(i, layer, c, planet.glaciation)) return c;
   if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .55, planet.continental[i] ? .55 : .36); }
@@ -176,7 +179,7 @@ function computeCoasts() {
   }
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
-function generate() { stopTour('stopped: new world'); const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
+function generate() { stopTour('stopped: new world'); fogMask = null; const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
 // ---- PF-03 graphics quality and PF-05/07 sky controls ----
 const graphicsSelect = document.querySelector('#graphics'), dayButton = document.querySelector('#daycycle'), daySpeed = document.querySelector('#dayspeed'), cloudButton = document.querySelector('#clouds'), clockLabel = document.querySelector('#clock');
 const params = new URLSearchParams(location.search), requested = params.get('gfx');
@@ -199,13 +202,13 @@ daySpeed.addEventListener('change', () => { presentation.clock.speed = daySpeed.
 cloudButton.addEventListener('click', () => { const on = cloudButton.getAttribute('aria-pressed') !== 'true'; cloudButton.setAttribute('aria-pressed', String(on)); presentation.setCloudsWanted(on); });
 setInterval(() => { if (presentation.clock.playing) syncClock(); }, 500);
 applyQuality(qualityController.tier);
-window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state(), overlays: overlays.info(), selected, tour: tour ? { route: tour.route, stop: tour.i, of: tour.stops.length } : null, lastTourEnd, rotation: [mesh.rotation.x, mesh.rotation.y], zoom: presentation.getZoom(), store: { events: store.state.events.length, discoveries: store.state.discoveries.length, bookmarks: store.state.bookmarks.length, journal: store.state.journal.length } }),
+window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state(), overlays: overlays.info(), selected, fog: !!fogMask, seed: planet.seed, tour: tour ? { route: tour.route, stop: tour.i, of: tour.stops.length } : null, lastTourEnd, rotation: [mesh.rotation.x, mesh.rotation.y], zoom: presentation.getZoom(), store: { events: store.state.events.length, discoveries: store.state.discoveries.length, bookmarks: store.state.bookmarks.length, journal: store.state.journal.length } }),
   cellScreen: c => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * c], P[3 * c + 1], P[3 * c + 2]).multiplyScalar(presentation.radius(planet.elevation[c])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; },
   select: c => { selectCell(c); return selected; },
   setRotation: (rx, ry, zoom) => { tween = null; mesh.rotation.x = rx; mesh.rotation.y = ry; if (Number.isFinite(zoom)) presentation.setZoom(zoom, root.clientWidth, root.clientHeight); },
   neighbours: c => Array.from(baseMesh.neighbors.subarray(baseMesh.offsets[c], baseMesh.offsets[c + 1])),
   eligibleSites: (id, g, n) => { const out = []; for (let i = 0; i < planet.cellCount && out.length < n; i += 89) if (INVESTIGATIONS[id].groups[g].ok(planet, i)) out.push(i); return out; },
-  settlementScreen: () => planet.settlements.map((t, k) => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * t.cell], P[3 * t.cell + 1], P[3 * t.cell + 2]).multiplyScalar(presentation.radius(planet.elevation[t.cell])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { k, name: t.name, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; }), viewLongitude: () => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); return Math.atan2(d.z, d.x) * 180 / Math.PI; },
+  settlementScreen: () => planet.settlements.map((t, k) => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * t.cell], P[3 * t.cell + 1], P[3 * t.cell + 2]).multiplyScalar(presentation.radius(planet.elevation[t.cell])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { k, cell: t.cell, name: t.name, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; }), viewLongitude: () => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); return Math.atan2(d.z, d.x) * 180 / Math.PI; },
   setSubsolarLongitude: lon => { presentation.clock.subsolarLon = lon; syncClock(); return presentation.info(); } };
 // Test/diagnostic handle for the sky's quality tiers (PF-01); the world model is not reachable from here.
 window.__planetForgeSky = { info: presentation.sky.info, setQuality: q => { presentation.sky.setQuality(q); return presentation.sky.info(); } };
@@ -354,6 +357,9 @@ const gameApi = { // store wrapper: actions with a cell trigger a pooled PF-11 e
 const observatory = createObservatoryUI({
   get planet() { return planet; }, get selected() { return selected; }, store: gameApi, overlays,
   select: selectCell, flyTo, startTour, stopTour, captureView, restoreView,
+  pulse: (c, kind) => overlays.pulse(c, kind), showRoute: path => overlays.showTransect(path.map(cell => ({ cell }))),
+  setFog: mask => { fogMask = mask; makeGlobe(); }, forge: seed => { seedInput.value = seed; generate(); }, showGlacial: () => { eraSelect.value = 'glacial'; makeGlobe(); },
+  flyToLat: lat => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); flyTo(nearestCell(baseMesh, latLonToDir(lat, Math.atan2(d.z, d.x) * 180 / Math.PI), 0)); },
   tourText: () => tour ? `Stop ${tour.i + 1} of ${tour.stops.length}` : lastTourEnd ? 'Tour ' + lastTourEnd + '.' : '',
   worldIdentity: () => ({ seed: planet.seed, tilt: tiltSelect.value === 'seed' ? null : Number(tiltSelect.value), version: planet.version }),
   loadSave(save) {
@@ -361,6 +367,7 @@ const observatory = createObservatoryUI({
     if ([...tiltSelect.options].some(o => o.value === tiltValue)) tiltSelect.value = tiltValue;
     if (seedInput.value !== w.seed || planet.seed !== w.seed || (w.tilt !== null && planet.tilt !== w.tilt)) { seedInput.value = w.seed; generate(); }
     store.replace(save.state); restoreView(save.view || {});
+    const sc = save.state.scenario; fogMask = sc?.mode === 'survey' && sc.world === planet.seed ? surveyProgress(planet, sc.survey).mask : null; makeGlobe();
   }
 });
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');

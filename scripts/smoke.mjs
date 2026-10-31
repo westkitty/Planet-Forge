@@ -245,6 +245,43 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
     const corruptMsg = await page.locator('.drawer-status').innerText();
     check(p + 'saves round-trip, undo/redo restore state, corrupt or future saves are refused', undone.store.bookmarks === 0 && redone.store.bookmarks === 1 && /Save loaded/.test(loadMsg) && loaded.store.events === redone.store.events && Math.abs(loaded.rotation[1] - savedRot[1]) < 1e-6 && /Save loaded/.test(importMsg) && /Load refused: save version 99 is newer/.test(corruptMsg), [loadMsg, importMsg, corruptMsg].join(' | '));
   }
+  if (vp.name === 'desktop') { // ---- Milestone 3 (PF-14/17/18/22/28/29) ----
+    const towns = await page.evaluate(() => window.__planetForgeView.settlementScreen().map(t => t.cell));
+    await page.click('[data-tab=play]'); await page.waitForTimeout(150);
+    const trialsText = await page.locator('.drawer-body').innerText();
+    await page.evaluate(() => window.__planetForgeView.select(0)); await page.click('[data-trial=settlement]'); await page.waitForTimeout(150);
+    const tr = await page.locator('.drawer-body').innerText();
+    check(p + 'Planet Trials: generated challenges with code, transparent criteria and attempts', /ATLAS-001~1/.test(await page.inputValue('[aria-label="Challenge code"]')) && (trialsText.match(/Attempts left/g) || []).length >= 4 && /✘ on land \(20 pts\)/.test(tr) && /Attempts left: 2/.test(tr), tr.slice(0, 200));
+    await page.selectOption('#play-mode', 'expedition');
+    await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('text=Set start');
+    await page.evaluate(c => window.__planetForgeView.select(c), towns[1]); await page.click('text=Set destination');
+    await page.click('#exp-forecast'); await page.waitForFunction(() => document.querySelectorAll('.drawer-body table.grid tr').length === 13, null, { timeout: 30000 }).catch(() => {});
+    const rowsN = await page.locator('.drawer-body table.grid tr').count();
+    await page.click('#exp-go'); await page.waitForTimeout(400);
+    const ex = await page.locator('.drawer-body .verdict').innerText().catch(() => ''), exInfo = await V();
+    check(p + 'Seasonal expedition: 12-month forecast, launch, outcome and route on the globe', rowsN === 13 && (/Arrived after \d+ days/.test(ex) || /Failed on day \d+/.test(ex) || /no land route/.test(await page.locator('.drawer-status').innerText())) && exInfo.store.journal >= 2, `rows=${rowsN} ${ex.slice(0, 120)}`);
+    await page.selectOption('#play-mode', 'survey'); await page.click('#survey-start'); await page.waitForTimeout(300);
+    const fogOn = (await V()).fog;
+    await page.evaluate(c => window.__planetForgeView.select(c), towns[0]); await page.click('#survey-probe'); await page.waitForTimeout(300);
+    const sv = await page.locator('.drawer-body').innerText(), svMsg = await page.locator('.drawer-status').innerText();
+    await page.click('#survey-leave'); await page.waitForTimeout(300);
+    check(p + "Cartographer's Oath: fog of discovery, budgeted probes, mapping progress, full atlas restored on leaving", fogOn && /Budget left: 13/.test(sv) && /Revealed [\d,]+ cells/.test(svMsg) && !(await V()).fog, svMsg);
+    await page.selectOption('#play-mode', 'watershed'); await page.click('#council-run'); await page.waitForTimeout(300);
+    const ws = await page.locator('.drawer-body .verdict').innerText();
+    check(p + 'Watershed Council: five-year allocation with a conserved water ledger', /Harvest \d+ %, river health \d+ %/.test(ws) && /balance error -?\d\.\de[-+]\d+/.test(ws), ws.slice(0, 200));
+    await page.selectOption('#play-mode', 'faultline');
+    for (let k = 0; k < 8; k++) { await page.click('#fault-year'); await page.waitForTimeout(60); }
+    const fl = await page.locator('.drawer-body').innerText();
+    check(p + 'Faultline Command: eight-year campaign ends with recorded losses', /Campaign over: [\d,]+ people lost/.test(fl), fl.slice(0, 160));
+    await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForTimeout(2500);
+    if (await page.locator('text=Forge DET-10').count()) { await page.click('text=Forge DET-10'); await page.waitForTimeout(1500); await page.click('[data-tab=play]'); await page.selectOption('#play-mode', 'thaw'); await page.click('#thaw-prepare'); await page.waitForTimeout(3000); }
+    for (let k = 0; k < 24 && await page.locator('#thaw-march').count(); k++) { await page.click('#thaw-march'); await page.waitForTimeout(150); }
+    const th = await page.locator('.drawer-body').innerText(), thSeed = (await V()).seed;
+    check(p + 'The Great Thaw: a migration across a land bridge reaches a terminal outcome with a chronicle', /Victory|Defeat/.test(th) && /Turn \d+: march/.test(th), thSeed + ' ' + th.slice(0, 160));
+    if (thSeed !== 'ATLAS-001') { await page.fill('#seed', 'ATLAS-001'); await page.press('#seed', 'Enter'); await page.waitForTimeout(1200); }
+    await page.selectOption('#era', 'today'); await page.waitForTimeout(300);
+    await page.click('#observatory'); await page.waitForTimeout(100); if (await page.locator('#drawer').isHidden()) await page.click('#observatory');
+  }
   await page.keyboard.press('Escape'); await page.waitForTimeout(100);
   check(p + 'Escape closes the drawer and the console stays within budget', await page.locator('#drawer').isHidden() && await page.evaluate(() => document.querySelector('.panel').getBoundingClientRect().height / innerHeight) <= .15);
   await page.fill('#seed', 'SMOKE-42'); await page.press('#seed', 'Enter'); await page.waitForTimeout(300);

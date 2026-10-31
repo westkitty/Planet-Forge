@@ -5,6 +5,7 @@ import { explain, TOPICS, TOPIC_LABELS } from './why.js';
 import { transect, transectCsv, QUERIES, runQuery } from './analysis.js';
 import { INVESTIGATIONS, investigationAvailability, recordObservation, evaluate, SITES_PER_GROUP, ROUTES } from './observatory.js';
 import { makeSave, parseSave } from './gameState.js';
+import { createPlay } from './playUI.js';
 
 const h = (tag, attrs = {}, ...kids) => {
   const el = document.createElement(tag);
@@ -31,7 +32,9 @@ export function createObservatoryUI(app) {
   }
   const refresh = () => { if (!drawer.hidden) show(active); };
 
+  const play = createPlay(app, msg => status(msg));
   const render = {
+    play: () => play.render(),
     cell() {
       const i = app.selected;
       if (i < 0) return h('p', {}, 'Select a place on the globe (click, tap, or Enter for the centre), then ask why it is the way it is.');
@@ -158,5 +161,6 @@ export function createObservatoryUI(app) {
   });
   for (const t of tabs) t.addEventListener('click', () => show(t.dataset.tab));
   app.store.subscribe(() => { if (active === 'journal' || active === 'tours') refresh(); });
-  return { open, close, refresh, show, get active() { return active; }, resetWorld() { transectA = transectB = -1; lastTransect = null; inv = { id: null, record: [], result: null }; refresh(); } };
+  // the Play tab re-renders itself; it is not refreshed on store changes so in-progress inputs are kept
+  return { open, close, refresh, show, get active() { return active; }, resetWorld() { play.reset(); transectA = transectB = -1; lastTransect = null; inv = { id: null, record: [], result: null }; refresh(); } };
 }

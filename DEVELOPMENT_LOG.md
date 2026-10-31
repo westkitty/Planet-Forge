@@ -109,3 +109,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Milestone 2 (PF-09/10/11/12/13/27/30/31): `src/geo.js`, `src/gameState.js`, `src/analysis.js`, `src/why.js`, `src/observatory.js`, `src/overlays.js`, `src/observatoryUI.js`; analytic surface picking replaces triangle raycasts; Observatory drawer with Why / Transect / Correlate / Investigate / Tours / Journal.
 - Repairs during verification: day clock slowed by the 50 ms frame cap (now real elapsed time); Escape only closed the drawer when focus was inside it; smoke flow left the globe rotated at a tour stop and broke two later visual checks (view now restored).
 - Results: npm test 70/70; smoke 140/140; idle perf unchanged from M1 high (desktop median 233.3 ms SwiftShader); no GPU-object leaks.
+
+## 2026-10-31 — M1 live-verified; M2 merged; Milestone 3 playable science built
+
+- Deploy run 41227194178 (dbf3c2a): verify, deploy and the new live-verify job all succeeded. Live JS sha256 a7594e24… equals the CI build; the browser smoke suite passed 119/119 against https://westkitty.github.io/Planet-Forge/. PF-01…PF-08 LIVE_VERIFIED.
+- PR #4 (M2) CI 41227541328 green on 7fae459; merged as 3628217.
+- Milestone 3 (PF-14/17/18/22/28/29) in `src/gameplay/` + `src/playUI.js` (Play tab). Repairs during verification: river path direction, ocean-cell basin guard, thaw setup via glacial connectivity, watershed demand scaled to flow (decisions had no effect), survey probes/clues (objectives unreachable).
+- Results: npm test 78/78; smoke 146/146; JS 648.44 kB.
