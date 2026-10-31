@@ -15,9 +15,9 @@
 // Assumptions, constants and sources: docs/features/F-0003-climate-circulation.md.
 
 export const SOLAR_CONSTANT = 1361;            // W m^-2 (Kopp & Lean 2011)
-const OLR_A = 203.3, OLR_B = 2.09;            // W m^-2, W m^-2 K^-1 (North, Cahalan & Coakley 1981)
-const TRANSPORT = 3.81;                        // W m^-2 K^-1, Budyko-type transport toward global mean (North 1975)
-const LAPSE = 0.0065;                          // K m^-1 (ICAO standard atmosphere)
+export const OLR_A = 203.3, OLR_B = 2.09;            // W m^-2, W m^-2 K^-1 (North, Cahalan & Coakley 1981)
+export const TRANSPORT = 3.81;                        // W m^-2 K^-1, Budyko-type transport toward global mean (North 1975)
+export const LAPSE = 0.0065;                          // K m^-1 (ICAO standard atmosphere)
 // Seasonal heat capacity (season-0.5, F-0006 seasonal damping). Annual harmonic angular frequency and heat capacities in
 // J m^-2 K^-1: ocean = 50 m mixed layer (rho c_p h = 1025 x 3990 x 50, de Boyer Montegut et al. 2004 typical depth);
 // land = atmospheric column (c_p p_s / g = 1004 x 1e5 / 9.81 = 1.0e7) plus the soil layer reached by the annual

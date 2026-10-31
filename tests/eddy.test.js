@@ -7,7 +7,7 @@ import { eddyStep, eddyFactors, EDDY_BANDS, EDDY_DIFFUSIVITY, KOPPEN } from '../
 const SEEDS = Array.from({ length: 20 }, (_, i) => `DET-${String(i).padStart(2, '0')}`);
 
 test('version, diffusivity from the literature, stable sub-steps', () => {
-  assert.equal(MODEL_VERSION, 'eddy-0.6');
+  assert.ok(['eddy-0.6', 'glacial-0.7'].includes(MODEL_VERSION)); // glacial-0.7 (WIP) builds on eddy-0.6
   assert.ok(EDDY_DIFFUSIVITY >= 1e6 && EDDY_DIFFUSIVITY <= 2e6); // Hwang & Frierson 2010: 1.06e6; Frierson et al. 2007: 1.84-1.87e6
   for (const km of [30, 76.4, 240, 600]) { const e = eddyStep(km); assert.ok(e.step <= 0.45 && Math.abs(e.step * e.sub - e.alpha) < 1e-12, JSON.stringify(e)); }
   assert.ok(Math.abs(eddyStep(76.4).alpha / 3 - 0.413) < 0.01); // D dt / dy^2 per transport iteration at 100,002 cells
