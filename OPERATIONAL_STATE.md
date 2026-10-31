@@ -33,3 +33,10 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 
 - Branch `feat/tectonic-plates` from fd50365. Local: tests 13/13, seed report 20/20 reproducible/distinct at 100,002 cells (165–286 ms/seed Node), smoke 58/58 against vite preview.
 - Deployment status for this feature is recorded in the next entry.
+
+## 2026-10-31 — Deployment verification for 415370a, F-0002 COMPLETE (append-only log entry)
+
+- 415370a fast-forwarded onto main (no branch protection) and pushed. Actions run 41188679630: verify success (tests, build, smoke in CI), deploy success.
+- Live https://westkitty.github.io/Planet-Forge/ serves `assets/index-DXspMwPW.js` and `assets/index-8cH-Nk_m.css`, identical to the local build of 415370a.
+- `scripts/smoke.mjs` against the live URL: 58/58 at 1280×800 and 390×844, zero console errors; live page reports model tectonic-0.2 with 100,002 cells.
+- F-0002 status: COMPLETE. Next candidates: hydrology (priority-flood + drainage) or moisture advection with rain shadow, now that real mountains exist.

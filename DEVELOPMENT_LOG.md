@@ -9,3 +9,4 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Kept `src/world.js` (prototype-0.1) and its tests; its PRNG and seed hash are reused.
 - First visual check showed boundary classes flickering cell by cell and trenches hitting the −11,000 m clamp; fixed by smoothing boundary signals along each plate-pair segment and capping trench depth.
 - Local verification: tests 13/13, seed report 20/20 reproducible and distinct, smoke 58/58.
+- Deployed: 415370a on main, Actions run 41188679630 success, live asset hash matches local build, live smoke 58/58. F-0002 COMPLETE.

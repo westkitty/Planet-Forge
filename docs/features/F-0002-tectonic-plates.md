@@ -1,6 +1,6 @@
 # F-0002 — Geodesic cell mesh and rigid-plate tectonics (tectonic-0.2)
 
-Status: implemented on branch `feat/tectonic-plates` (2026-10-31). Status in production is recorded in `OPERATIONAL_STATE.md`.
+Status: COMPLETE — deployed 2026-10-31 in 415370a (Actions run 41188679630, live smoke 58/58).
 
 ## Candidate evaluation (cycle 2026-10-31 05:09 ET)
 
