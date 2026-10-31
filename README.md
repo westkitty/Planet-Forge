@@ -1,0 +1,30 @@
+# Planet Forge
+
+A seeded procedural planet viewer and living atlas. This repository is being bootstrapped in small verifiable stages; advanced tectonic, climate, hydrologic and historical simulation fidelity is **not yet implemented**.
+
+## Run locally
+
+```sh
+npm install
+npm run dev
+```
+
+`npm run build` creates the GitHub Pages bundle. `npm test` checks reproducibility and basic geographic invariants. All runtime dependencies are bundled into the built static site.
+
+## Architecture
+
+- `src/world.js` deterministic world model
+- `src/main.js` Three.js globe, controls and data inspection
+- `src/style.css` responsive presentation
+- `.github/workflows/deploy.yml` Pages CI/CD (activate Pages > GitHub Actions in repository Settings)
+- `OPERATIONAL_STATE.md` verified vs unverified implementation state
+
+Hosted site (once enabled and successfully deployed): https://westkitty.github.io/Planet-Forge/
+
+## Status
+
+Baseline prototype, not the full Planet Forge scientific simulation. Automated hourly feature creation requires a separate authorized coding-agent runtime and scheduler; the Pages workflow only builds and deploys tested commits.
+
+## License
+
+MIT; Three.js MIT license; Vite MIT license. Scientific classifications are qualitative approximations pending citation-backed model development.
