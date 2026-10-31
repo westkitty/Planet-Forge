@@ -20,7 +20,7 @@ test('Thornthwaite PET and Fu/Budyko curve behave as published', () => {
 test('20 seeds: drainage is a forest rooted at the sea or terminal lakes; water balance closes; reproducible', () => {
   for (const seed of SEEDS) {
     const p = createPlanet(seed, { frequency: 32, mesh: mesh32 }), h = p.hydro, n = p.cellCount;
-    assert.equal(p.version, 'hydro-0.4');
+    assert.equal(p.version, 'glacial-0.5');
     let runoffQ = 0, lakeNet = 0, landN = 0;
     const toM3s = p.cellAreaKm2 * 1000 / (365.25 * 86400);
     for (let i = 0; i < n; i++) {

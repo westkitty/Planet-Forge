@@ -180,7 +180,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
   check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
-  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'hydro-0.4' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
+  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'glacial-0.5' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 

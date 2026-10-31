@@ -13,9 +13,9 @@
 // Assumptions, constants and sources: docs/features/F-0003-climate-circulation.md.
 
 export const SOLAR_CONSTANT = 1361;            // W m^-2 (Kopp & Lean 2011)
-const OLR_A = 203.3, OLR_B = 2.09;            // W m^-2, W m^-2 K^-1 (North, Cahalan & Coakley 1981)
-const TRANSPORT = 3.81;                        // W m^-2 K^-1, Budyko-type transport toward global mean (North 1975)
-const LAPSE = 0.0065;                          // K m^-1 (ICAO standard atmosphere)
+export const OLR_A = 203.3, OLR_B = 2.09;            // W m^-2, W m^-2 K^-1 (North, Cahalan & Coakley 1981)
+export const TRANSPORT = 3.81;                        // W m^-2 K^-1, Budyko-type transport toward global mean (North 1975)
+export const LAPSE = 0.0065;                          // K m^-1 (ICAO standard atmosphere)
 export const KOPPEN = ['Ocean', 'Af', 'Am', 'Aw', 'BWh', 'BWk', 'BSh', 'BSk', 'Csa', 'Csb', 'Csc', 'Cwa', 'Cwb', 'Cwc', 'Cfa', 'Cfb', 'Cfc', 'Dsa', 'Dsb', 'Dsc', 'Dsd', 'Dwa', 'Dwb', 'Dwc', 'Dwd', 'Dfa', 'Dfb', 'Dfc', 'Dfd', 'ET', 'EF'];
 // Colours from the Köppen-Geiger legend of Peel, Finlayson & McMahon (2007).
 export const KOPPEN_COLORS = { Ocean: '#175d83', Af: '#0000ff', Am: '#0078ff', Aw: '#46aafa', BWh: '#ff0000', BWk: '#ff9696', BSh: '#f5a500', BSk: '#ffdc64', Csa: '#ffff00', Csb: '#c8c800', Csc: '#969600', Cwa: '#96ff96', Cwb: '#64c864', Cwc: '#329632', Cfa: '#c8ff50', Cfb: '#64ff50', Cfc: '#32c800', Dsa: '#ff00ff', Dsb: '#c800c8', Dsc: '#963296', Dsd: '#966496', Dwa: '#aaafff', Dwb: '#5a78dc', Dwc: '#4b50b4', Dwd: '#320087', Dfa: '#00ffff', Dfb: '#37c8ff', Dfc: '#007d7d', Dfd: '#00465f', ET: '#b2b2b2', EF: '#666666' };
