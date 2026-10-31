@@ -166,6 +166,93 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const highInfo = await page.evaluate(() => ({ v: window.__planetForgeView.info(), s: window.__planetForgeSky.info() }));
   check(p + 'graphics selector switches tiers (low: no ocean effects, fewer stars; high restored)', lowInfo.v.quality === 'low' && !lowInfo.v.ocean && !lowInfo.v.cloudShadows && lowInfo.s.drawn === 4500 && lowShot.colours > 40 && highInfo.v.quality === 'high' && highInfo.s.drawn === 14000 && highInfo.v.ocean, `${JSON.stringify(lowInfo.v)} / ${highInfo.s.drawn}`);
 
+  // ---- Milestone 2 (PF-09/10/11/12/13/27/30/31) ----
+  const V = () => page.evaluate(() => window.__planetForgeView.info());
+  const m2Start = await page.evaluate(() => window.__planetForgeView.info());
+  if (vp.name === 'desktop') {
+    await page.mouse.move(cx + 30, cy - 20); await page.waitForTimeout(250);
+    check(p + 'hovering the globe shows a hover marker without selecting', (await V()).overlays.hover === true, JSON.stringify((await V()).overlays));
+  }
+  let pickOK = 0, picks = [];
+  for (const [fx, fy] of [[0, 0], [.18, -.1], [-.15, .12], [.05, .2], [-.2, -.15]]) {
+    const c = await page.evaluate(([x, y]) => window.__planetForgeView.select(-1) || 0, [0, 0]);
+    await page.mouse.click(cx + fx * box.width * .5, cy + fy * box.height * .5); await page.waitForTimeout(120);
+    const sel = (await V()).selected; if (sel < 0) { picks.push('miss'); continue; }
+    const scr = await page.evaluate(c => window.__planetForgeView.cellScreen(c), sel);
+    await page.evaluate(() => window.__planetForgeView.select(-1));
+    await page.mouse.click(scr.x, scr.y); await page.waitForTimeout(120);
+    const again = (await V()).selected, nb = await page.evaluate(c => window.__planetForgeView.neighbours(c), sel);
+    if (again === sel || nb.includes(again)) pickOK++; picks.push(sel + '→' + again);
+  }
+  check(p + 'clicking a cell\'s projected position selects that cell (or a neighbour)', pickOK === 5, picks.join(' '));
+  const selInfo = await V(), labelShown = await page.locator('#cell-label').isVisible();
+  check(p + 'exactly one selection reticle and a contextual label', selInfo.overlays.reticle && selInfo.selected >= 0 && labelShown && (await page.locator('#cell-label').innerText()).includes(' m'), JSON.stringify(selInfo.overlays));
+  await page.click('#observatory'); await page.waitForTimeout(150);
+  check(p + 'observatory drawer opens on demand', await page.locator('#drawer').isVisible() && (await page.getAttribute('#observatory', 'aria-expanded')) === 'true');
+  await page.click('[data-topic=terrain]'); await page.waitForTimeout(100);
+  const why = await page.locator('.why-out').innerText();
+  check(p + 'Why engine answers with computed facts, inference and unknowns', /COMPUTED FACTS/i.test(why) && /Elevation -?\d+ m/.test(why) && /NOT MODELLED/i.test(why), why.slice(0, 160));
+  if (vp.name === 'desktop') {
+    await page.click('[data-topic=climate]'); await page.waitForTimeout(100);
+    check(p + 'Why engine climate answer quotes rainfall', /Rainfall \d+ mm\/yr/.test(await page.locator('.why-out').innerText()));
+    await page.click('text=Record discovery'); await page.waitForTimeout(100);
+    const afterDisc = await V();
+    check(p + 'recording a discovery logs an event and fires a pooled effect', afterDisc.store.discoveries === 1 && afterDisc.overlays.spawned >= 1 && afterDisc.overlays.activeEffects <= afterDisc.overlays.poolSize, JSON.stringify(afterDisc.store) + ' ' + JSON.stringify(afterDisc.overlays));
+    // Transect between two picked places
+    await page.click('[data-tab=transect]');
+    await page.evaluate(() => window.__planetForgeView.select(1348)); await page.click('text=Set start');
+    await page.evaluate(() => window.__planetForgeView.select(4000)); await page.click('text=Set end');
+    await page.click('#transect-run'); await page.waitForTimeout(200);
+    const tx = await page.locator('.drawer-body').innerText();
+    check(p + 'transect draws a profile with units and an on-globe path', (await V()).overlays.transect && /\d[\d,]* km, \d+ cells/.test(tx) && /mm\/yr/.test(tx) && await page.locator('.drawer-body svg').count() === 1, tx.slice(0, 160));
+    const [csv] = await Promise.all([page.waitForEvent('download'), page.click('text=Export CSV')]);
+    const csvText = fs.readFileSync(await csv.path(), 'utf8');
+    check(p + 'transect exports CSV rows', csvText.startsWith('distance_km,cell,lat,lon,elevation_m') && csvText.split('\n').length > 10, csvText.split('\n').length + ' lines');
+    // Correlation query
+    await page.click('[data-tab=correlate]'); await page.selectOption('#query', 'dryNearHighlands'); await page.click('#query-run'); await page.waitForTimeout(400);
+    const cq = await page.locator('.drawer-body').innerText();
+    check(p + 'correlation query reports counts, lift and highlights matches', /Lift: [\d.]+×/.test(cq) && /does not show that one causes the other/.test(cq) && (await V()).overlays.highlights > 0, cq.slice(0, 200));
+    // Investigation: record 3+3 real sites and conclude
+    await page.click('[data-tab=investigate]'); await page.selectOption('#investigation', 'seafloorAge');
+    const A = await page.evaluate(() => window.__planetForgeView.eligibleSites('seafloorAge', 'A', 3)), B = await page.evaluate(() => window.__planetForgeView.eligibleSites('seafloorAge', 'B', 3));
+    for (const c of A) { await page.evaluate(c => window.__planetForgeView.select(c), c); await page.click('#inv-add-a'); }
+    for (const c of B) { await page.evaluate(c => window.__planetForgeView.select(c), c); await page.click('#inv-add-b'); }
+    await page.evaluate(c => window.__planetForgeView.select(c), A[0]); await page.click('#inv-add-b'); await page.waitForTimeout(80);
+    const refusal = await page.locator('.drawer-status').innerText();
+    await page.click('#inv-supported'); await page.waitForTimeout(100);
+    const verdict = await page.locator('.verdict').innerText();
+    check(p + 'investigation enforces site rules and returns an evidence-based verdict', /already recorded|already has 3|not a valid/.test(refusal) && /mean A [\d.]+ vs mean B [\d.]+ m/.test(verdict) && /H1 (supported|rejected)/.test(verdict) && (await V()).store.journal === 1, refusal + ' / ' + verdict.slice(0, 140));
+    // Tours and bookmarks
+    await page.click('[data-tab=tours]'); await page.fill('[aria-label="Bookmark name"]', 'Home'); await page.click('#bookmark-save'); await page.waitForTimeout(100);
+    await page.selectOption('#tour-route', 'mountains'); await page.click('#tour-start'); await page.waitForTimeout(400);
+    const t1 = await V();
+    await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(150);
+    const t2 = await V();
+    check(p + 'tour flies to data-picked stops and any input interrupts it', t1.tour && t1.tour.of >= 3 && t1.selected >= 0 && !t2.tour && t2.lastTourEnd === 'interrupted' && t2.store.bookmarks === 1 && await page.locator('#tour-caption').isHidden(), JSON.stringify([t1.tour, t2.lastTourEnd]));
+    // Journal: save, change, load, undo/redo, export/import, corrupt import
+    await page.click('[data-tab=journal]'); await page.click('#save-local'); await page.waitForTimeout(80);
+    const savedRot = (await V()).rotation;
+    await page.click('#undo'); await page.waitForTimeout(80);
+    const undone = await V(); await page.click('#redo'); await page.waitForTimeout(80); const redone = await V();
+    await page.click('#load-local'); await page.waitForTimeout(400);
+    const loaded = await V(), loadMsg = await page.locator('.drawer-status').innerText();
+    const [sv] = await Promise.all([page.waitForEvent('download'), page.click('#save-export')]);
+    const savePath = path.join(outDir, 'desktop-save.json'); await sv.saveAs(savePath);
+    await page.setInputFiles('#save-import', savePath); await page.waitForTimeout(500);
+    const importMsg = await page.locator('.drawer-status').innerText();
+    fs.writeFileSync(path.join(outDir, 'corrupt.save.json'), '{"schema":"planet-forge-save","saveVersion":99}');
+    await page.setInputFiles('#save-import', path.join(outDir, 'corrupt.save.json')); await page.waitForTimeout(200);
+    const corruptMsg = await page.locator('.drawer-status').innerText();
+    check(p + 'saves round-trip, undo/redo restore state, corrupt or future saves are refused', undone.store.bookmarks === 0 && redone.store.bookmarks === 1 && /Save loaded/.test(loadMsg) && loaded.store.events === redone.store.events && Math.abs(loaded.rotation[1] - savedRot[1]) < 1e-6 && /Save loaded/.test(importMsg) && /Load refused: save version 99 is newer/.test(corruptMsg), [loadMsg, importMsg, corruptMsg].join(' | '));
+  }
+  await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+  check(p + 'Escape closes the drawer and the console stays within budget', await page.locator('#drawer').isHidden() && await page.evaluate(() => document.querySelector('.panel').getBoundingClientRect().height / innerHeight) <= .15);
+  await page.fill('#seed', 'SMOKE-42'); await page.press('#seed', 'Enter'); await page.waitForTimeout(300);
+  const cleared = await V();
+  await page.fill('#seed', 'ATLAS-001'); await page.press('#seed', 'Enter'); await page.waitForTimeout(300);
+  check(p + 'a new world clears the selection and overlays', cleared.selected === -1 && !cleared.overlays.reticle && !cleared.overlays.transect && cleared.overlays.highlights === 0, JSON.stringify(cleared.overlays));
+  await page.evaluate(v => window.__planetForgeView.setRotation(v.rotation[0], v.rotation[1], v.zoom), m2Start); await page.waitForTimeout(200);
+
   // Zoom by wheel
   await page.mouse.move(cx, cy);
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, -100); await page.waitForTimeout(40); }

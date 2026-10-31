@@ -6,6 +6,11 @@ import { GLACIAL_CELL } from './glaciation.js';
 import './style.css';
 import { createPresentation } from './presentation.js';
 import { createQualityController, deviceCeiling, TIERS } from './quality.js';
+import { createOverlays } from './overlays.js';
+import { createGameStore } from './gameState.js';
+import { createObservatoryUI } from './observatoryUI.js';
+import { tourStops, facingRotation, ROUTES, INVESTIGATIONS } from './observatory.js';
+import { pickSurface, cellDir } from './geo.js';
 const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt'), eraSelect = document.querySelector('#era');
 let planet, mesh, renderedPlanet = null, annotation = null, zonalRain, coastalMask, disposed = false, glacialMs = null;
 const FREQUENCY = 100; // 10f^2+2 = 100,002 cells
@@ -16,6 +21,7 @@ camera.position.set(0, 0, 3);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
+const overlays = createOverlays(baseMesh, presentation.radius);
 const BIOME_COLORS = { Ocean: '#164e70', Ice: '#eef8fa', Tundra: '#92aaa5', 'Boreal forest': '#286b63', 'Cold desert': '#baa17b', 'Temperate grassland': '#a8b276', 'Woodland / shrubland': '#9c925d', 'Temperate seasonal forest': '#4b8860', 'Temperate rainforest': '#2a7756', 'Subtropical desert': '#c79d67', 'Tropical seasonal forest / savanna': '#919f4e', 'Tropical rainforest': '#17664c' };
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
@@ -97,6 +103,8 @@ function makeGlobe() {
     if (rotation) mesh.rotation.copy(rotation);
     scene.add(mesh);
     presentation.installWorld(mesh, planet);
+    mesh.add(overlays.group);
+    if (renderedPlanet !== planet) overlays.setWorld(planet);
     annotation = null;
     renderedPlanet = planet;
   }
@@ -168,7 +176,7 @@ function computeCoasts() {
   }
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
-function generate() { const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
+function generate() { stopTour('stopped: new world'); const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
 // ---- PF-03 graphics quality and PF-05/07 sky controls ----
 const graphicsSelect = document.querySelector('#graphics'), dayButton = document.querySelector('#daycycle'), daySpeed = document.querySelector('#dayspeed'), cloudButton = document.querySelector('#clouds'), clockLabel = document.querySelector('#clock');
 const params = new URLSearchParams(location.search), requested = params.get('gfx');
@@ -191,9 +199,12 @@ daySpeed.addEventListener('change', () => { presentation.clock.speed = daySpeed.
 cloudButton.addEventListener('click', () => { const on = cloudButton.getAttribute('aria-pressed') !== 'true'; cloudButton.setAttribute('aria-pressed', String(on)); presentation.setCloudsWanted(on); });
 setInterval(() => { if (presentation.clock.playing) syncClock(); }, 500);
 applyQuality(qualityController.tier);
-generate();
-syncClock();
-window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state() }),
+window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state(), overlays: overlays.info(), selected, tour: tour ? { route: tour.route, stop: tour.i, of: tour.stops.length } : null, lastTourEnd, rotation: [mesh.rotation.x, mesh.rotation.y], zoom: presentation.getZoom(), store: { events: store.state.events.length, discoveries: store.state.discoveries.length, bookmarks: store.state.bookmarks.length, journal: store.state.journal.length } }),
+  cellScreen: c => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * c], P[3 * c + 1], P[3 * c + 2]).multiplyScalar(presentation.radius(planet.elevation[c])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; },
+  select: c => { selectCell(c); return selected; },
+  setRotation: (rx, ry, zoom) => { tween = null; mesh.rotation.x = rx; mesh.rotation.y = ry; if (Number.isFinite(zoom)) presentation.setZoom(zoom, root.clientWidth, root.clientHeight); },
+  neighbours: c => Array.from(baseMesh.neighbors.subarray(baseMesh.offsets[c], baseMesh.offsets[c + 1])),
+  eligibleSites: (id, g, n) => { const out = []; for (let i = 0; i < planet.cellCount && out.length < n; i += 89) if (INVESTIGATIONS[id].groups[g].ok(planet, i)) out.push(i); return out; },
   settlementScreen: () => planet.settlements.map((t, k) => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * t.cell], P[3 * t.cell + 1], P[3 * t.cell + 2]).multiplyScalar(presentation.radius(planet.elevation[t.cell])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { k, name: t.name, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; }), viewLongitude: () => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); return Math.atan2(d.z, d.x) * 180 / Math.PI; },
   setSubsolarLongitude: lon => { presentation.clock.subsolarLon = lon; syncClock(); return presentation.info(); } };
 // Test/diagnostic handle for the sky's quality tiers (PF-01); the world model is not reachable from here.
@@ -215,6 +226,7 @@ function pointerSpan() {
   return pair.length < 2 ? 0 : Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y);
 }
 canvas.addEventListener('pointerdown', e => {
+  interrupt();
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   canvas.setPointerCapture(e.pointerId);
   lastInteraction = performance.now();
@@ -227,6 +239,7 @@ canvas.addEventListener('pointerdown', e => {
   }
 });
 canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse' && !e.buttons) { hoverAt = [e.clientX, e.clientY]; return; }
   if (!pointers.has(e.pointerId)) return;
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   lastInteraction = performance.now();
@@ -250,17 +263,32 @@ canvas.addEventListener('pointerup', e => {
   lastInteraction = performance.now();
   if (tap && Math.hypot(e.clientX - px, e.clientY - py) <= 7) inspectAt(e.clientX, e.clientY);
 });
+canvas.addEventListener('pointerleave', () => { hoverAt = null; overlays.setHover(-1); });
+let hoverAt = null;
 canvas.addEventListener('pointercancel', e => {
   pointers.delete(e.pointerId);
   if (pointers.size === 0) suppressTap = false;
   drag = false;
   lastInteraction = performance.now();
 });
-function inspectAt(clientX, clientY) {
+// PF-10: analytic surface pick in the planet frame (ray vs the displayed relief radius, then a walk over the cell mesh);
+// it ignores clouds, markers and overlays, and needs no triangle raycast, so hover picking is cheap.
+let lastPick = 0;
+function pickAt(clientX, clientY) {
   const r = canvas.getBoundingClientRect(); const mouse = new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
-  const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera); const hit = ray.intersectObject(mesh, false)[0]; if (!hit) return; // the globe only: never clouds, markers or overlays
-  const local = mesh.worldToLocal(hit.point.clone()); const P = baseMesh.positions; let best = hit.face.a, bd = Infinity;
-  for (const k of [hit.face.a, hit.face.b, hit.face.c]) { const d = (P[3 * k] - local.x) ** 2 + (P[3 * k + 1] - local.y) ** 2 + (P[3 * k + 2] - local.z) ** 2; if (d < bd) { bd = d; best = k; } }
+  const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera); mesh.updateMatrixWorld();
+  const inv = mesh.matrixWorld.clone().invert(), o = ray.ray.origin.clone().applyMatrix4(inv), d = ray.ray.direction.clone().transformDirection(inv);
+  const cell = pickSurface(baseMesh, o.toArray(), d.toArray(), c => presentation.radius(planet.elevation[c]), lastPick);
+  if (cell >= 0) lastPick = cell;
+  return cell;
+}
+function inspectAt(clientX, clientY) { const cell = pickAt(clientX, clientY); if (cell >= 0) selectCell(cell); }
+let selected = -1;
+function selectCell(best) {
+  selected = best; overlays.select(best);
+  if (best >= 0) cellLabel.textContent = (planet.settlements.find(t => t.cell === best)?.name ?? (planet.elevation[best] < 0 ? 'Ocean' : BIOMES[planet.biome[best]])) + ' · ' + Math.round(planet.elevation[best]).toLocaleString('en-US') + ' m';
+  if (best < 0) { presentation.selectSettlement(-1); return; }
+  const P = baseMesh.positions;
   const c = cellInfo(planet, best), p = planet.plates[c.plate];
   // PF-08: a click within 2.5° of a generated settlement selects it and reports its recorded site data.
   let site = -1, sd = Math.cos(2.5 * Math.PI / 180);
@@ -268,10 +296,76 @@ function inspectAt(clientX, clientY) {
   presentation.selectSettlement(site);
   const t = planet.settlements[site];
   document.querySelector('#inspect').textContent = (t ? 'Settlement ' + t.name + ' (founded year ' + t.founded + ', ' + t.water + ', ' + t.setting + ', ' + t.climate + ' climate, ' + t.lat + '°, ' + t.lon + '°) · ' : '') + c.lat + '° lat, ' + c.lon + '° lon · ' + c.biome + ' · Köppen ' + c.koppen + ' · ' + c.elevation + ' m · ' + c.temperature + ' °C (Jan ' + c.temperatureJan + ', Jul ' + c.temperatureJul + ') · ' + c.rainfall + ' mm/yr · plate ' + c.plate + ' (' + c.crust + ', ' + p.speedCmYr + ' cm/yr)' + (c.boundary !== 'none' ? ' · ' + c.boundary + ' boundary' : '') + (c.seafloorAgeMyr !== undefined ? ' · seafloor ~' + c.seafloorAgeMyr + ' Myr' : '') + (c.dischargeM3s !== undefined ? ' · ' + (c.lake ? c.lake + ' · ' : '') + 'flow ' + c.dischargeM3s.toLocaleString('en-US') + ' m³/s · runoff ' + c.runoffMm + ' mm/yr · basin ' + c.basin : '') + (c.glacial && glacialView() ? ' · ice age: ' + c.glacial + (c.glacialIceM ? ' ' + c.glacialIceM.toLocaleString('en-US') + ' m thick' : '') : '');
+  if (observatory.active === 'cell') observatory.refresh();
 }
+// ---- PF-10 contextual label, PF-09 fly-to and tours, PF-13 store ----
+const cellLabel = document.querySelector('#cell-label'), tourCaption = document.querySelector('#tour-caption');
+let tween = null, tour = null;
+const motionOK = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;
+function flyTo(cell, duration = 1.6) {
+  const to = facingRotation(cellDir(baseMesh, cell)), from = { x: mesh.rotation.x, y: mesh.rotation.y };
+  to.y = from.y + (((to.y - from.y) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; // shortest way round
+  tween = { from, to, t: 0, dur: motionOK() ? duration : 0 };
+}
+function stepTween(dt) {
+  if (!tween) return false;
+  tween.t = tween.dur ? Math.min(1, tween.t + dt / tween.dur) : 1;
+  const e = tween.t < .5 ? 2 * tween.t * tween.t : 1 - (-2 * tween.t + 2) ** 2 / 2;
+  mesh.rotation.x = tween.from.x + (tween.to.x - tween.from.x) * e; mesh.rotation.y = tween.from.y + (tween.to.y - tween.from.y) * e;
+  if (tween.t >= 1) tween = null;
+  return true;
+}
+function startTour(route) {
+  const stops = tourStops(planet, route).filter(s => s && s.cell >= 0);
+  if (!stops.length) return;
+  tour = { route, stops, i: -1, hold: 0 }; nextStop();
+}
+function nextStop() {
+  tour.i++;
+  if (tour.i >= tour.stops.length) return stopTour('finished');
+  const s = tour.stops[tour.i]; flyTo(s.cell, 2.2); selectCell(s.cell); tour.hold = 4.5;
+  tourCaption.hidden = false; tourCaption.textContent = `${ROUTES[tour.route]} · ${tour.i + 1}/${tour.stops.length} — ${s.title}: ${s.text}`;
+  observatory.refresh();
+}
+function stopTour(why) { if (!tour) return; tour = null; tween = null; tourCaption.hidden = true; lastTourEnd = why; observatory.refresh(); }
+let lastTourEnd = '';
+function stepTour(dt) { if (!tour || tween) return; tour.hold -= dt; if (tour.hold <= 0) nextStop(); }
+function interrupt() { if (tour) stopTour('interrupted'); tween = null; }
+function captureView() { return { rx: mesh.rotation.x, ry: mesh.rotation.y, zoom: presentation.getZoom(), cell: selected >= 0 ? selected : null }; }
+function restoreView(v) {
+  tween = { from: { x: mesh.rotation.x, y: mesh.rotation.y }, to: { x: v.rx ?? 0, y: v.ry ?? 0 }, t: 0, dur: motionOK() ? 1.2 : 0 };
+  if (Number.isFinite(v.zoom)) presentation.setZoom(v.zoom, root.clientWidth, root.clientHeight);
+  selectCell(Number.isInteger(v.cell) && v.cell < planet.cellCount ? v.cell : -1);
+}
+function updateLabel() {
+  if (selected < 0 || !mesh) { cellLabel.hidden = true; return; }
+  const P = baseMesh.positions, v = new THREE.Vector3(P[3 * selected], P[3 * selected + 1], P[3 * selected + 2]).multiplyScalar(presentation.radius(planet.elevation[selected]));
+  mesh.localToWorld(v);
+  if (v.clone().normalize().dot(camera.position.clone().sub(v).normalize()) < .1) { cellLabel.hidden = true; return; }
+  v.project(camera);
+  cellLabel.hidden = false;
+  cellLabel.style.transform = `translate(${((v.x + 1) / 2 * root.clientWidth).toFixed(1)}px, ${((1 - v.y) / 2 * root.clientHeight).toFixed(1)}px) translate(-50%, -170%)`;
+}
+const store = createGameStore();
+const gameApi = { // store wrapper: actions with a cell trigger a pooled PF-11 effect at that cell
+  get state() { return store.state; }, subscribe: store.subscribe, undo: store.undo, redo: store.redo, canUndo: store.canUndo, canRedo: store.canRedo, replace: store.replace,
+  apply(type, payload) { const ok = store.apply(type, payload); if (ok && Number.isInteger(payload?.cell)) overlays.pulse(payload.cell, type === 'bookmark' ? 'bookmark' : type === 'journal' ? 'observation' : 'discovery'); return ok; }
+};
+const observatory = createObservatoryUI({
+  get planet() { return planet; }, get selected() { return selected; }, store: gameApi, overlays,
+  select: selectCell, flyTo, startTour, stopTour, captureView, restoreView,
+  tourText: () => tour ? `Stop ${tour.i + 1} of ${tour.stops.length}` : lastTourEnd ? 'Tour ' + lastTourEnd + '.' : '',
+  worldIdentity: () => ({ seed: planet.seed, tilt: tiltSelect.value === 'seed' ? null : Number(tiltSelect.value), version: planet.version }),
+  loadSave(save) {
+    const w = save.world, tiltValue = w.tilt === null ? 'seed' : String(w.tilt);
+    if ([...tiltSelect.options].some(o => o.value === tiltValue)) tiltSelect.value = tiltValue;
+    if (seedInput.value !== w.seed || planet.seed !== w.seed || (w.tilt !== null && planet.tilt !== w.tilt)) { seedInput.value = w.seed; generate(); }
+    store.replace(save.state); restoreView(save.view || {});
+  }
+});
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');
-canvas.addEventListener('keydown', e => { if (!mesh) return; const k = e.key; if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
-canvas.addEventListener('wheel', e => { e.preventDefault(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight); }, { passive: false });
+canvas.addEventListener('keydown', e => { if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight); }, { passive: false });
 function resize() {
   const w = root.clientWidth, h = root.clientHeight;
   if (!w || !h) return;
@@ -283,6 +377,8 @@ function resize() {
 const resizeObserver = new ResizeObserver(resize);
 resizeObserver.observe(root);
 resize();
+generate();
+syncClock();
 let lastFrame = performance.now(), prevFrame = 0;
 function animate(now = performance.now()) {
   if (disposed) return;
@@ -290,8 +386,13 @@ function animate(now = performance.now()) {
   const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
   const motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!drag && mesh && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
-  presentation.tick(dt, motion, mesh);
+  const flying = mesh && stepTween(dt);
+  if (mesh) stepTour(dt);
+  if (!drag && mesh && !flying && !tour && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
+  if (hoverAt && mesh && !drag) { overlays.setHover(pickAt(hoverAt[0], hoverAt[1])); hoverAt = null; }
+  overlays.tick(dt, motion);
+  updateLabel();
+  presentation.tick(dt, motion, mesh, Math.min(.5, prevFrame ? (now - prevFrame) / 1000 : 0));
   renderer.render(scene, camera);
   const nextTier = qualityController.sample(now - prevFrame, now); prevFrame = now;
   if (nextTier) applyQuality(nextTier);

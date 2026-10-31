@@ -102,3 +102,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Defect fixed: recursive raycast could pick the cloud sphere and report a wrong cell on the Biomes view.
 - Repairs during verification: quality windows started at the wrong time (unit test caught it); terminator check initially failed (night side over-lit by fill and bounce lights; dimmed in the natural view); low tier still sampled cloud cover with shadows off (guarded: desktop low 216.7 → 200.0 ms).
 - Results: npm test 61/61; smoke 119/119; perf (SwiftShader) desktop median PF-01 183.4 → M1 high 233.3 / low 200.0 ms; no GPU-object leaks.
+
+## 2026-10-31 — Milestone 1 merged; Milestone 2 observatory built
+
+- PR #3 first CI run failed one check: Auto quality never adapted on the runner because frames slower than 250 ms were discarded as stalls (a real defect: Auto was blind below 4 fps). Fixed (only > 1 s intervals ignored), unit test for a 2.5 fps device added; CI 41226266670 green on b4dee86; merged as dbf3c2a.
+- Milestone 2 (PF-09/10/11/12/13/27/30/31): `src/geo.js`, `src/gameState.js`, `src/analysis.js`, `src/why.js`, `src/observatory.js`, `src/overlays.js`, `src/observatoryUI.js`; analytic surface picking replaces triangle raycasts; Observatory drawer with Why / Transect / Correlate / Investigate / Tours / Journal.
+- Repairs during verification: day clock slowed by the 50 ms frame cap (now real elapsed time); Escape only closed the drawer when focus was inside it; smoke flow left the globe rotated at a tour stop and broke two later visual checks (view now restored).
+- Results: npm test 70/70; smoke 140/140; idle perf unchanged from M1 high (desktop median 233.3 ms SwiftShader); no GPU-object leaks.

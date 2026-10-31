@@ -9,7 +9,12 @@
 </head>
 <body>
 <div id="app">
-  <main id="viewer" role="region" aria-label="3D globe viewer"></main>
+  <main id="viewer" role="region" aria-label="3D globe viewer"><div id="cell-label" class="cell-label" hidden aria-hidden="true"></div><p id="tour-caption" class="tour-caption" hidden aria-live="polite"></p></main>
+  <section id="drawer" class="drawer" role="dialog" aria-label="Observatory" hidden>
+    <header class="drawer-head"><div role="tablist" aria-label="Observatory tools"><button role="tab" data-tab="cell">Why</button><button role="tab" data-tab="transect">Transect</button><button role="tab" data-tab="correlate">Correlate</button><button role="tab" data-tab="investigate">Investigate</button><button role="tab" data-tab="tours">Tours</button><button role="tab" data-tab="journal">Journal</button></div><button class="drawer-close" aria-label="Close observatory">×</button></header>
+    <p class="drawer-status" role="status" aria-live="polite"></p>
+    <div class="drawer-body" role="tabpanel"></div>
+  </section>
   <aside class="panel" aria-label="World controls and atlas telemetry">
     <div class="command-row" role="group" aria-label="Planet control console">
       <header class="brand">
@@ -37,7 +42,7 @@
         <label for="era">Era</label>
         <select id="era"><option value="today">Today (interglacial)</option><option value="glacial">Last glacial maximum</option></select>
       </div>
-      <div class="action-group" aria-label="World actions"><button id="random">Random seed</button><button id="export">Export atlas</button></div>
+      <div class="action-group" aria-label="World actions"><button id="random">Random seed</button><button id="export">Export atlas</button><button id="observatory" aria-expanded="false" aria-controls="drawer">Observatory</button></div>
       <div class="control graphics-control">
         <label for="graphics">Graphics</label>
         <select id="graphics"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
