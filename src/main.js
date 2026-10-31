@@ -7,6 +7,10 @@ import './style.css';
 import { createPresentation } from './presentation.js';
 import { createQualityController, deviceCeiling, TIERS } from './quality.js';
 import { createOverlays } from './overlays.js';
+import { createSatelliteView } from './celestialView.js';
+import { createLocalScene } from './localScene.js';
+import { moveVehicle } from './localTerrain.js';
+import { STAR_TYPES, habitability } from './celestial.js';
 import { createGameStore } from './gameState.js';
 import { createObservatoryUI } from './observatoryUI.js';
 import { tourStops, facingRotation, ROUTES, INVESTIGATIONS } from './observatory.js';
@@ -23,6 +27,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPr
 root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
 const overlays = createOverlays(baseMesh, presentation.radius);
+const satellites = createSatelliteView();
 const BIOME_COLORS = { Ocean: '#164e70', Ice: '#eef8fa', Tundra: '#92aaa5', 'Boreal forest': '#286b63', 'Cold desert': '#baa17b', 'Temperate grassland': '#a8b276', 'Woodland / shrubland': '#9c925d', 'Temperate seasonal forest': '#4b8860', 'Temperate rainforest': '#2a7756', 'Subtropical desert': '#c79d67', 'Tropical seasonal forest / savanna': '#919f4e', 'Tropical rainforest': '#17664c' };
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
@@ -42,7 +47,9 @@ function glacialColor(i, layer, c, g) {
 }
 const glacialView = () => eraSelect.value === 'glacial' || layerSelect.value === 'glacial';
 let fogMask = null; // PF-17 survey mode: unmapped cells are drawn as fog (presentation only)
+let diffMap = null; // PF-16 experiment: per-cell temperature change (experiment − baseline), drawn instead of the layer
 function color(i, layer, c) {
+  if (diffMap) { const d = Math.max(-1, Math.min(1, diffMap[i] / 15)); return d < 0 ? c.setRGB(.85 + .15 * d, .88 + .5 * d, .95) : c.setRGB(.95, .88 - .6 * d, .85 - .75 * d); }
   if (fogMask && !fogMask[i]) return c.setRGB(.03, .045, .06);
   const el = planet.elevation[i];
   if (glacialView() && glacialColor(i, layer, c, planet.glaciation)) return c;
@@ -106,7 +113,7 @@ function makeGlobe() {
     if (rotation) mesh.rotation.copy(rotation);
     scene.add(mesh);
     presentation.installWorld(mesh, planet);
-    mesh.add(overlays.group);
+    mesh.add(overlays.group, satellites.group);
     if (renderedPlanet !== planet) overlays.setWorld(planet);
     annotation = null;
     renderedPlanet = planet;
@@ -179,7 +186,7 @@ function computeCoasts() {
   }
 }
 function computeZonalRain() { const sum = new Float64Array(180), cnt = new Float64Array(180); for (let i = 0; i < planet.cellCount; i++) if (planet.elevation[i] >= 0) { const b = Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90))); sum[b] += planet.rainfall[i]; cnt[b]++; } zonalRain = Array.from(sum, (v, b) => { let s = 0, c = 0; for (let d = -3; d <= 3; d++) { const k = b + d; if (k >= 0 && k < 180) { s += sum[k]; c += cnt[k]; } } return c ? s / c : 0; }); }
-function generate() { stopTour('stopped: new world'); fogMask = null; const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
+function generate() { stopTour('stopped: new world'); fogMask = null; diffMap = null; if (local) { local.view.dispose(); local = null; } const t0 = performance.now(); const tilt = tiltSelect.value === 'seed' ? undefined : Number(tiltSelect.value); planet = createPlanet(seedInput.value.trim() || 'ATLAS-001', { frequency: FREQUENCY, mesh: baseMesh, tilt }); glacialMs = null; computeZonalRain(); computeCoasts(); makeGlobe(); selectCell(-1); observatory.resetWorld(); applyCelestial(); printWorld(); window.__planetForge = { seed: planet.seed, version: planet.version, cells: planet.cellCount, tilt: planet.tilt, generateMs: Math.round(performance.now() - t0), glacialMs, sky: presentation.sky.info() }; }
 // ---- PF-03 graphics quality and PF-05/07 sky controls ----
 const graphicsSelect = document.querySelector('#graphics'), dayButton = document.querySelector('#daycycle'), daySpeed = document.querySelector('#dayspeed'), cloudButton = document.querySelector('#clouds'), clockLabel = document.querySelector('#clock');
 const params = new URLSearchParams(location.search), requested = params.get('gfx');
@@ -202,9 +209,11 @@ daySpeed.addEventListener('change', () => { presentation.clock.speed = daySpeed.
 cloudButton.addEventListener('click', () => { const on = cloudButton.getAttribute('aria-pressed') !== 'true'; cloudButton.setAttribute('aria-pressed', String(on)); presentation.setCloudsWanted(on); });
 setInterval(() => { if (presentation.clock.playing) syncClock(); }, 500);
 applyQuality(qualityController.tier);
-window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state(), overlays: overlays.info(), selected, fog: !!fogMask, seed: planet.seed, tour: tour ? { route: tour.route, stop: tour.i, of: tour.stops.length } : null, lastTourEnd, rotation: [mesh.rotation.x, mesh.rotation.y], zoom: presentation.getZoom(), store: { events: store.state.events.length, discoveries: store.state.discoveries.length, bookmarks: store.state.bookmarks.length, journal: store.state.journal.length } }),
+window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: qualityController.state(), overlays: overlays.info(), satellites: satellites.info(), local: local ? { kind: local.kind, ...local.state, log: undefined } : null, diff: !!diffMap, selected, fog: !!fogMask, seed: planet.seed, tour: tour ? { route: tour.route, stop: tour.i, of: tour.stops.length } : null, lastTourEnd, rotation: [mesh.rotation.x, mesh.rotation.y], zoom: presentation.getZoom(), store: { events: store.state.events.length, discoveries: store.state.discoveries.length, bookmarks: store.state.bookmarks.length, journal: store.state.journal.length } }),
   cellScreen: c => { const P = baseMesh.positions, v = new THREE.Vector3(P[3 * c], P[3 * c + 1], P[3 * c + 2]).multiplyScalar(presentation.radius(planet.elevation[c])); mesh.localToWorld(v); const facing = v.clone().normalize().dot(camera.position.clone().sub(v).normalize()); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, facing }; },
   select: c => { selectCell(c); return selected; },
+  skyRay: (x, y) => { const r = canvas.getBoundingClientRect(), ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1), camera); return presentation.sky.pickStar(ray.ray.direction); },
+  starScreen: i => { const c = presentation.sky.catalogue, v = new THREE.Vector3(c.direction[3 * i], c.direction[3 * i + 1], c.direction[3 * i + 2]).multiplyScalar(40).add(camera.position); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, onScreen: Math.abs(v.x) < .95 && Math.abs(v.y) < .95 && v.z < 1, mag: c.magnitude[i] }; },
   setRotation: (rx, ry, zoom) => { tween = null; mesh.rotation.x = rx; mesh.rotation.y = ry; if (Number.isFinite(zoom)) presentation.setZoom(zoom, root.clientWidth, root.clientHeight); },
   neighbours: c => Array.from(baseMesh.neighbors.subarray(baseMesh.offsets[c], baseMesh.offsets[c + 1])),
   eligibleSites: (id, g, n) => { const out = []; for (let i = 0; i < planet.cellCount && out.length < n; i += 89) if (INVESTIGATIONS[id].groups[g].ok(planet, i)) out.push(i); return out; },
@@ -285,7 +294,22 @@ function pickAt(clientX, clientY) {
   if (cell >= 0) lastPick = cell;
   return cell;
 }
-function inspectAt(clientX, clientY) { const cell = pickAt(clientX, clientY); if (cell >= 0) selectCell(cell); }
+let local = null; // PF-19 / PF-32: when set, the app renders this local scene instead of the globe
+function localMove(input) { if (!local || local.state.over) return; local.state = moveVehicle(local.patch, local.list, local.state, input, local.kind === 'ocean' ? 'sub' : 'rover'); local.view.sync(local.state); local.onChange(local.state); }
+let skyPick = null; // PF-04: when set, taps that miss the planet pick a star instead (never a planet cell)
+function inspectAt(clientX, clientY) {
+  if (local) return;
+  const cell = pickAt(clientX, clientY);
+  if (cell >= 0) { selectCell(cell); return; }
+  if (skyPick) { const r = canvas.getBoundingClientRect(), ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1), camera); skyPick(presentation.sky.pickStar(ray.ray.direction)); }
+}
+// Restore per-world celestial state (star, fleet, constellations) from the gameplay store.
+function applyCelestial() {
+  const f = store.state.flags, star = f['star:' + planet.seed];
+  if (star && STAR_TYPES[star.type]) presentation.setStarLight(STAR_TYPES[star.type].teff, habitability(star).relativeToModel); else presentation.setStarLight(5772, 1);
+  satellites.setFleet(f['fleet:' + planet.seed] || []);
+  presentation.sky.setConstellations(f['constellations:' + planet.seed] || []);
+}
 let selected = -1;
 function selectCell(best) {
   selected = best; overlays.select(best);
@@ -358,7 +382,12 @@ const observatory = createObservatoryUI({
   get planet() { return planet; }, get selected() { return selected; }, store: gameApi, overlays,
   select: selectCell, flyTo, startTour, stopTour, captureView, restoreView,
   pulse: (c, kind) => overlays.pulse(c, kind), showRoute: path => overlays.showTransect(path.map(cell => ({ cell }))),
-  setFog: mask => { fogMask = mask; makeGlobe(); }, setSettlementState: (w, st) => presentation.setSettlementState(w, st), highlight: cells => overlays.highlight(cells, 0x9ff0c8), reducedMotion: () => !motionOK(), forge: seed => { seedInput.value = seed; generate(); }, showGlacial: () => { eraSelect.value = 'glacial'; makeGlobe(); },
+  setFog: mask => { fogMask = mask; makeGlobe(); }, sky: presentation.sky, setDiffMap: d => { diffMap = d; makeGlobe(); },
+  enterLocal(patch, list, kind, state, onChange) { if (local) local.view.dispose(); local = { view: createLocalScene(patch, list, kind), patch, list, kind, state, onChange }; local.view.resize(root.clientWidth, root.clientHeight); local.view.sync(state); tourCaption.hidden = true; cellLabel.hidden = true; },
+  exitLocal() { if (!local) return; local.view.dispose(); local = null; },
+  localMove: input => localMove(input),
+  setStarLight: (teff, rel) => presentation.setStarLight(teff, rel), setSun: (lat, lon) => presentation.setSun(lat, lon), setFleet: f => satellites.setFleet(f),
+  setSkyPick: fn => { skyPick = fn; }, setSettlementState: (w, st) => presentation.setSettlementState(w, st), highlight: cells => overlays.highlight(cells, 0x9ff0c8), reducedMotion: () => !motionOK(), forge: seed => { seedInput.value = seed; generate(); }, showGlacial: () => { eraSelect.value = 'glacial'; makeGlobe(); },
   flyToLat: lat => { const d = new THREE.Vector3(0, 0, 1).applyQuaternion(mesh.quaternion.clone().invert()); flyTo(nearestCell(baseMesh, latLonToDir(lat, Math.atan2(d.z, d.x) * 180 / Math.PI), 0)); },
   tourText: () => tour ? `Stop ${tour.i + 1} of ${tour.stops.length}` : lastTourEnd ? 'Tour ' + lastTourEnd + '.' : '',
   worldIdentity: () => ({ seed: planet.seed, tilt: tiltSelect.value === 'seed' ? null : Number(tiltSelect.value), version: planet.version }),
@@ -366,12 +395,14 @@ const observatory = createObservatoryUI({
     const w = save.world, tiltValue = w.tilt === null ? 'seed' : String(w.tilt);
     if ([...tiltSelect.options].some(o => o.value === tiltValue)) tiltSelect.value = tiltValue;
     if (seedInput.value !== w.seed || planet.seed !== w.seed || (w.tilt !== null && planet.tilt !== w.tilt)) { seedInput.value = w.seed; generate(); }
-    store.replace(save.state); restoreView(save.view || {});
+    store.replace(save.state); restoreView(save.view || {}); applyCelestial();
     const sc = save.state.scenario; fogMask = sc?.mode === 'survey' && sc.world === planet.seed ? surveyProgress(planet, sc.survey).mask : null; makeGlobe();
   }
 });
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');
-canvas.addEventListener('keydown', e => { if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
+canvas.addEventListener('keydown', e => {
+  if (local) { const m = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key]; if (m) { localMove({ dx: m[0], dy: m[1], dz: 0 }); e.preventDefault(); } else if (e.key === 'q' || e.key === 'e') { localMove({ dx: 0, dy: 0, dz: e.key === 'q' ? 200 : -200 }); e.preventDefault(); } return; }
+  if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
 canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight); }, { passive: false });
 function resize() {
   const w = root.clientWidth, h = root.clientHeight;
@@ -380,6 +411,7 @@ function resize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   presentation.fitCamera(w, h);
+  local?.view.resize(w, h);
 }
 const resizeObserver = new ResizeObserver(resize);
 resizeObserver.observe(root);
@@ -398,9 +430,10 @@ function animate(now = performance.now()) {
   if (!drag && mesh && !flying && !tour && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
   if (hoverAt && mesh && !drag) { overlays.setHover(pickAt(hoverAt[0], hoverAt[1])); hoverAt = null; }
   overlays.tick(dt, motion);
+  satellites.update(motion ? dt * 120 : 0); // 2 simulated minutes per second; frozen under reduced motion
   updateLabel();
   presentation.tick(dt, motion, mesh, Math.min(.5, prevFrame ? (now - prevFrame) / 1000 : 0));
-  renderer.render(scene, camera);
+  if (local) renderer.render(local.view.scene, local.view.camera); else renderer.render(scene, camera);
   const nextTier = qualityController.sample(now - prevFrame, now); prevFrame = now;
   if (nextTier) applyQuality(nextTier);
   presentation.afterFirstFrame();

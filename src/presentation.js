@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createStarfield } from './starfield.js';
+import { createStarfield, blackbodyRgb } from './starfield.js';
 import { PROFILES } from './quality.js';
 import { buildCloudField, oceanDepthField, settlementLightField, sunDirection, seasonDeclination } from './surfaceFields.js';
 
@@ -226,6 +226,13 @@ void main() {
     const lights = currentGlobe.geometry.getAttribute('aLights'); lights.array.set(settlementLightField(currentPlanet, 2, weights)); lights.needsUpdate = true; // in place: no new GPU buffer
     const a = markers?.geometry.getAttribute('aState'); if (a) { for (let k = 0; k < a.count; k++) a.setX(k, states ? states[k] : 0); a.needsUpdate = true; }
   }
+  /** PF-24: tint and scale the visible sunlight for the configured parent star (presentation only). */
+  function setStarLight(teff, relativeFlux) {
+    const [r, g, b] = blackbodyRgb(teff), k = .55; sunlight.color.setRGB(r * k + (1 - k), g * k + (1 - k) * .93, b * k + (1 - k) * .82);
+    sunlight.intensity = 2.9 * Math.max(.45, Math.min(1.6, Math.pow(relativeFlux, .25)));
+  }
+  /** Point the natural-view sun at a given subsolar latitude/longitude (e.g. an eclipse's moment). */
+  function setSun(lat, lon) { clock.declination = lat; clock.subsolarLon = lon; clock.playing = false; }
   function selectSettlement(k) { selectedSettlement = k; markerMaterial.uniforms.uSelected.value = k; }
 
   /** Called once per new world mesh. */
@@ -311,7 +318,7 @@ void main() {
   }
   return {
     radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
-    selectSettlement, setSettlementState, clock, sky: starfield,
+    selectSettlement, setSettlementState, setStarLight, setSun, clock, sky: starfield,
     get quality() { return profileName; },
     info: () => ({ quality: profileName, pixelRatio: renderer.getPixelRatio(), clouds: !!clouds?.visible, cloudShadows: shared.uCloudShadow.value === 1, ocean: shared.uOceanFx.value === 1, natural: clock.natural, subsolarLon: +clock.subsolarLon.toFixed(2), declination: clock.declination, dayPlaying: clock.playing, selectedSettlement })
   };
