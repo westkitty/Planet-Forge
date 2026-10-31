@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {hashSeed,rng,sampleCell,createWorld,buildGrid} from '../src/world.js';
+test('seed stability',()=>{assert.equal(hashSeed('a'),hashSeed('a'));assert.deepEqual(createWorld('a'),createWorld('a'));assert.notDeepEqual(createWorld('a'),createWorld('b'))});
+test('reproducible random stream',()=>{const a=rng(42),b=rng(42);for(let i=0;i<100;i++)assert.equal(a(),b())});
+test('20 seeded conceptual worlds have finite consistent sampled values',()=>{for(let s=0;s<20;s++){let w=createWorld('test-'+s);assert.ok(w.settlements.length<=8);for(let c of buildGrid(w.seed,15)){assert.ok(Number.isFinite(c.elevation));assert.ok(c.temperature>=-65&&c.temperature<=47);assert.ok(c.rainfall>=0);assert.equal(c.elevation<0,c.biome==='Ocean');}}});
