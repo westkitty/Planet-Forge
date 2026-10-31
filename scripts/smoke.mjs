@@ -81,6 +81,9 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const sett = await page.locator('#settlements').innerText();
   const chron = await page.locator('#chronicle').innerText();
   check(p + 'settlements listed', sett.trim().length > 0 && !/No viable/.test(sett), sett.slice(0, 120));
+  const rivs = await page.locator('#rivers').innerText();
+  check(p + 'great rivers listed with discharge and length', /River · [\d,]+ m³\/s · [\d,]+ km/.test(rivs), rivs.slice(0, 140));
+  check(p + 'hydrology stats shown', /Rivers to sea: \d+k m³\/s/.test(stats1) || /Rivers to sea/.test(await page.locator('#stats').innerText()));
   check(p + 'chronicle listed', /\d+ — /.test(chron), chron.slice(0, 120));
 
   // Rotation by drag
@@ -104,7 +107,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
 
   // Layer selection
   let prev = afterZoom;
-  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'koppen', 'winds', 'biome']) {
+  for (const layer of ['elevation', 'temperature', 'rainfall', 'plates', 'boundaries', 'age', 'koppen', 'winds', 'rivers', 'basins', 'biome']) {
     await page.selectOption('#layer', layer); await page.waitForTimeout(400);
     const s = await canvas.screenshot();
     fs.writeFileSync(path.join(outDir, `${vp.name}-3-layer-${layer}.png`), s);
@@ -158,7 +161,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const file = path.join(outDir, `${vp.name}-${dl.suggestedFilename()}`);
   await dl.saveAs(file);
   let ok = false, detail = '';
-  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); ok = j.seed === 'ATLAS-001' && Array.isArray(j.sampledCells) && j.sampledCells.length > 1000 && Array.isArray(j.settlements); detail = `${dl.suggestedFilename()} seed=${j.seed} cells=${j.sampledCells?.length} version=${j.version}`; } catch (e) { detail = e.message; }
+  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); ok = j.seed === 'ATLAS-001' && Array.isArray(j.rivers) && j.rivers.length > 0 && j.columns?.dischargeM3s?.length === j.cellCount && Array.isArray(j.sampledCells) && j.sampledCells.length > 1000 && Array.isArray(j.settlements); detail = `${dl.suggestedFilename()} seed=${j.seed} cells=${j.sampledCells?.length} version=${j.version}`; } catch (e) { detail = e.message; }
   check(p + 'JSON export downloads valid atlas', ok, detail);
 
   // Responsive: no horizontal overflow, panel visible
@@ -177,7 +180,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)); }
   check(p + 'keyboard focus reaches seed, forge, layer, random, export', ['seed', 'generate', 'layer', 'season', 'tilt', 'random', 'export'].every(id => order.includes(id)), order.join(' > '));
   const perf = await page.evaluate(() => window.__planetForge);
-  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'climate-0.3' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
+  check(p + 'climate model loaded with ~100k cells', perf && perf.version === 'hydro-0.4' && perf.cells === 100002 && perf.tilt >= 10 && perf.tilt <= 35, JSON.stringify(perf));
   const lang = await page.evaluate(() => document.documentElement.lang);
   check(p + 'document language set', !!lang, lang);
 

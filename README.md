@@ -1,6 +1,6 @@
 # Planet Forge
 
-A seeded procedural planet viewer and living atlas. This repository is being bootstrapped in small verifiable stages; the planet is a 100,002-cell geodesic mesh with seeded rigid-plate tectonics (model `tectonic-0.2`); climate, hydrology and history are still conceptual or not yet implemented.
+A seeded procedural planet viewer and living atlas. This repository is being bootstrapped in small verifiable stages; the planet is a 100,002-cell geodesic mesh with seeded rigid-plate tectonics, a conceptual seasonal climate and a conceptual water balance with rivers, lakes, salt lakes and drainage basins (model `hydro-0.4`; see `docs/features/`); erosion and history are not yet implemented.
 
 ## Run locally
 

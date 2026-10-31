@@ -1,4 +1,4 @@
-// Planet Forge world model (version climate-0.3: tectonic-0.2 relief + climate-0.3 circulation and climate).
+// Planet Forge world model (version hydro-0.4: tectonic-0.2 relief + climate-0.3 climate + hydro-0.4 rivers, lakes, basins).
 //
 // Conceptual approximation, not a geodynamic simulation. The planet is a
 // geodesic cell mesh (10f^2+2 cells); plates grow from seeded nuclei, each
@@ -8,9 +8,11 @@
 // docs/features/F-0002-tectonic-plates.md; climate in src/climate.js and docs/features/F-0003-climate-circulation.md.
 import { hashSeed, rng } from './world.js';
 import { computeClimate, BIOMES, KOPPEN } from './climate.js';
+import { computeHydrology, RIVER_MIN_M3S, LAKE } from './hydrology.js';
 
 export { BIOMES, KOPPEN };
-export const MODEL_VERSION = 'climate-0.3';
+export const MODEL_VERSION = 'hydro-0.4';
+export const LAKE_TYPES = ['none', 'fresh lake', 'salt lake', 'salt flat'];
 export const EARTH_RADIUS_KM = 6371;
 export const BOUNDARY = ['none', 'convergent', 'divergent', 'transform'];
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -251,22 +253,32 @@ export function createPlanet(seed, opts = {}) {
   const climate = computeClimate({ mesh, elevation, lat, spacingKm, noise: i => fbm(P[3 * i] * 2, P[3 * i + 1] * 2, P[3 * i + 2] * 2, noiseSeed ^ 0x77) }, tilt);
   const { temperature, rainfall, biome } = climate;
 
-  // 8. Settlements on habitable land cells, with tectonic setting recorded.
+  // 8. Hydrology: runoff, Priority-Flood drainage, rivers, lakes with water balance, basins.
+  const cellAreaKm2 = 4 * Math.PI * EARTH_RADIUS_KM ** 2 / n;
+  const hydro = computeHydrology({ mesh, elevation, lat, climate, tilt, spacingKm, cellAreaKm2, seedHash: s32 });
+  const riverOfBasin = new Map(hydro.rivers.map(r => [hydro.basin[r.mouth], r]));
+  // fresh water within one cell: a river (discharge >= threshold) or a fresh lake
+  const waterAt = i => { let best = null; for (const j of [i, ...N.subarray(O[i], O[i + 1])]) { if (hydro.lake[j] === LAKE.fresh) return 'lake'; if (hydro.discharge[j] >= RIVER_MIN_M3S / 3 && !best) best = 'river'; } return best; };
+
+  // 9. Settlements on habitable land cells with fresh water (river or fresh lake), tectonic setting recorded.
   const names = ['Aster', 'Vela', 'Orin', 'Keth', 'Nadir', 'Sora', 'Mira', 'Eris'];
   const settlements = []; let attempts = 0;
   while (settlements.length < 8 && attempts < 6000) {
     attempts++;
     const i = Math.floor(random() * n);
     const el = elevation[i];
-    if (!(el > 0 && el < 1800 && temperature[i] > 3 && rainfall[i] > 300)) continue;
+    if (!(el > 0 && el < 1800 && temperature[i] > 3 && rainfall[i] > 300) || hydro.lake[i]) continue;
+    const water = waterAt(i); if (!water && attempts < 4500) continue; // after 4,500 tries accept rain-fed sites
     const far = settlements.every(st => { const j = st.cell; return P[3 * i] * P[3 * j] + P[3 * i + 1] * P[3 * j + 1] + P[3 * i + 2] * P[3 * j + 2] < Math.cos(24 * Math.PI / 180); });
     if (!far) continue;
     const setting = src[i] >= 0 && dist[i] * spacingKm < 500 ? BOUNDARY[boundary[src[i]]] + ' margin' : 'plate interior';
-    settlements.push({ name: names[settlements.length], cell: i, lat: Math.round(lat[i] * 10) / 10, lon: Math.round(lon[i] * 10) / 10, founded: Math.floor(random() * 1400) + 100, biome: BIOMES[biome[i]], climate: KOPPEN[climate.koppen[i]], setting });
+    const riv = riverOfBasin.get(hydro.basin[i]);
+    const waterText = water === 'lake' ? 'lakeshore' : water === 'river' ? (riv && !riv.endorheic ? 'on the ' + riv.name + ' system' : riv ? 'in the ' + riv.name + ' basin' : 'riverside') : 'rain-fed';
+    settlements.push({ name: names[settlements.length], cell: i, water: waterText, lat: Math.round(lat[i] * 10) / 10, lon: Math.round(lon[i] * 10) / 10, founded: Math.floor(random() * 1400) + 100, biome: BIOMES[biome[i]], climate: KOPPEN[climate.koppen[i]], setting });
   }
-  const timeline = settlements.map(t => ({ year: t.founded, event: `${t.name} founded in ${t.biome.toLowerCase()} (${t.climate} climate, ${t.setting})` })).sort((a, b) => a.year - b.year || a.event.localeCompare(b.event));
+  const timeline = settlements.map(t => ({ year: t.founded, event: `${t.name} founded ${t.water === 'rain-fed' ? '' : t.water + ', '}in ${t.biome.toLowerCase()} (${t.climate} climate, ${t.setting})` })).sort((a, b) => a.year - b.year || a.event.localeCompare(b.event));
 
-  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, tilt, climate, temperature, rainfall, biome, koppen: climate.koppen, lat, lon, settlements, timeline };
+  return { seed: String(seed), version: MODEL_VERSION, frequency: f, cellCount: n, spacingKm, mesh, plates, plate, continental, boundary, boundaryConvergence: bConv, boundaryDistance: dist, seafloorAge: age, elevation, tilt, climate, temperature, rainfall, biome, koppen: climate.koppen, hydro, cellAreaKm2, lat, lon, settlements, timeline };
 }
 
 /** Plain-object view of one cell, used for inspection and export. */
@@ -275,6 +287,14 @@ export function cellInfo(planet, i) {
   const tm = Array.from(planet.climate.temperatureMonthly.subarray(12 * i, 12 * i + 12));
   const info = { cell: i, lat: planet.lat[i], lon: planet.lon[i], elevation: planet.elevation[i], temperature: planet.temperature[i], temperatureJan: tm[0], temperatureJul: tm[6], rainfall: planet.rainfall[i], koppen: KOPPEN[planet.koppen[i]], biome: BIOMES[planet.biome[i]], plate: p.id, crust: p.crust, boundary: BOUNDARY[planet.boundary[i]] };
   if (!planet.continental[i]) info.seafloorAgeMyr = Math.round(planet.seafloorAge[i]);
+  const h = planet.hydro;
+  if (planet.elevation[i] >= 0) {
+    info.runoffMm = h.runoff[i]; info.petMm = h.pet[i]; info.dischargeM3s = Math.round(h.discharge[i]);
+    const b = h.basins[h.basin[i]], r = h.rivers.find(x => h.basin[x.mouth] === h.basin[i]);
+    info.basin = (r ? r.name : (b.endorheic ? 'unnamed endorheic' : 'unnamed coastal')) + (b.endorheic ? ' (endorheic)' : '');
+    info.basinKm2 = Math.round(b.cells * planet.cellAreaKm2);
+    if (h.lake[i]) info.lake = LAKE_TYPES[h.lake[i]];
+  }
   return info;
 }
 
@@ -284,5 +304,6 @@ export function planetSummary(planet) {
   for (let i = 0; i < n; i++) { if (planet.elevation[i] >= 0) land++; bt[planet.boundary[i]]++; maxEl = Math.max(maxEl, planet.elevation[i]); minEl = Math.min(minEl, planet.elevation[i]); }
   const kc = {}; let pSum = 0, tSum = 0;
   for (let i = 0; i < n; i++) { pSum += planet.rainfall[i]; tSum += planet.temperature[i]; if (planet.koppen[i]) { const k = KOPPEN[planet.koppen[i]][0]; kc[k] = (kc[k] || 0) + 1; } }
-  return { cells: n, plates: planet.plates.length, tilt: planet.tilt, meanTemperature: Math.round(tSum / n * 10) / 10, meanPrecipitation: Math.round(pSum / n), koppenGroups: kc, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
+  const hs = planet.hydro.stats;
+  return { hydrology: { riverCells: hs.riverCells, endorheicLandFraction: Math.round(hs.endorheicFraction * 1000) / 1000, runoffRatio: Math.round(hs.runoffRatio * 1000) / 1000, freshLakes: hs.freshLakes, saltLakes: hs.saltLakes, toSeaM3s: hs.toSeaM3s, largestRiver: planet.hydro.rivers[0] ? planet.hydro.rivers[0].name : null }, cells: n, plates: planet.plates.length, tilt: planet.tilt, meanTemperature: Math.round(tSum / n * 10) / 10, meanPrecipitation: Math.round(pSum / n), koppenGroups: kc, landFraction: land / n, continentalFraction: planet.continental.reduce((a, b) => a + b, 0) / n, boundaryCells: { convergent: bt[1], divergent: bt[2], transform: bt[3] }, maxElevation: maxEl, minElevation: minEl };
 }
