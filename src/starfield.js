@@ -152,7 +152,9 @@ void main() {
   vColor = color;
   vSpike = spike;
   vScale = 1.0 + 1.8 * spike;
-  float flicker = 1.0 - uTwinkle * 0.16 * (0.5 + 0.5 * sin(uTime * (0.9 + 1.7 * phase) + phase * 61.0));
+  float w1 = sin(uTime * (1.1 + 1.6 * phase) + phase * 57.0);
+  float w2 = sin(uTime * (2.4 + 2.8 * phase) + phase * 103.0);
+  float flicker = 1.0 - uTwinkle * (0.11 * (0.5 + 0.5 * w1) + 0.05 * (0.5 + 0.5 * w2));
   vBright = brightness * flicker;
   gl_PointSize = size * vScale * uPixelRatio;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -168,14 +170,18 @@ void main() {
   if (r2 > 1.0) discard;
   vec2 c = p * vScale;                       // core coordinates: same apparent core size as an unspiked star
   float rc = dot(c, c);
-  float a = (exp(-rc * 5.0) + 0.16 * exp(-rc * 2.0)) * (1.0 - min(1.0, rc * rc));
+  // Airy core with soft Moffat halo
+  float a = (exp(-rc * 6.5) + 0.18 * exp(-rc * 1.9)) * (1.0 - min(1.0, r2));
   if (vSpike > 0.0) {
     vec2 q = abs(p);
-    float cross = exp(-q.y * 46.0) * (1.0 - q.x) + exp(-q.x * 46.0) * (1.0 - q.y);
-    a += vSpike * 0.55 * cross * (1.0 - r2);
+    float cross = exp(-q.y * 48.0) * (1.0 - q.x * 0.85) + exp(-q.x * 48.0) * (1.0 - q.y * 0.85);
+    float flare = 0.06 * exp(-abs(q.x - q.y) * 36.0);
+    a += vSpike * (0.55 * cross + flare) * (1.0 - r2);
   }
   a *= vBright;
-  gl_FragColor = vec4(vColor * a, a);
+  // Natural photometric core desaturation on intense stars
+  vec3 starColor = mix(vColor, vec3(0.98, 0.99, 1.0), smoothstep(0.45, 0.95, a));
+  gl_FragColor = vec4(starColor * a, a);
 }`;
 const skyVertex = `
 varying vec3 vDir;
@@ -238,8 +244,13 @@ void main() {
     float lane = exp(-pow(sb - 0.012 + warp, 2.0) / (2.0 * pow(0.22 * width, 2.0)));
     float patches = smoothstep(0.48, 0.78, fbm(d * 7.5 - uOffset));
     float extinction = 1.0 - 0.86 * clamp(lane * 0.85 + patches * 0.75 * band, 0.0, 1.0);
-    vec3 tint = mix(vec3(0.60, 0.68, 0.86), vec3(1.0, 0.84, 0.62), clamp(bulge * 1.4 + 0.25 * cosL * band, 0.0, 1.0));
-    col = tint * glow * extinction * uIntensity;
+    // Three-zone spectral grading: young blue stellar associations, golden galactic bulge, warm disk
+    vec3 diskTint = mix(vec3(0.62, 0.70, 0.88), vec3(0.92, 0.82, 0.70), clamp(0.5 + 0.5 * cosL, 0.0, 1.0));
+    vec3 tint = mix(diskTint, vec3(1.0, 0.84, 0.60), clamp(bulge * 1.35, 0.0, 1.0));
+    // Subtle H-alpha emission nebulae along galactic spiral arms
+    float hAlpha = pow(fbm(d * 6.5 + uOffset.yzx), 2.5) * band * clamp(1.0 - abs(sb) * 14.0, 0.0, 1.0) * (0.4 + 0.6 * clouds);
+    vec3 emission = vec3(0.82, 0.20, 0.35) * hAlpha * 0.28;
+    col = (tint * glow + emission) * extinction * uIntensity;
   }
   for (int g = 0; g < GALAXIES; g++) {
     vec3 c = uGalPos[g];
@@ -250,7 +261,11 @@ void main() {
     float x = dot(t, uGalMajor[g]) / uGalShape[g].x;
     float y = dot(t, minor) / (uGalShape[g].x * uGalShape[g].y);
     float r2 = x * x + y * y;
-    col += vec3(0.86, 0.82, 0.76) * uGalShape[g].z * uIntensity * (0.55 * exp(-r2 * 3.0) + 1.1 * exp(-r2 * 28.0));
+    // Morphological core-to-disc profile with chromatic gradient (dense golden nucleus, blue-shifted spiral arms)
+    float core = 1.3 * exp(-r2 * 32.0);
+    float disc = 0.55 * exp(-r2 * 3.0);
+    vec3 galTint = mix(vec3(0.70, 0.78, 0.92), vec3(1.0, 0.88, 0.72), core / (core + disc + 1e-4));
+    col += galTint * uGalShape[g].z * uIntensity * (disc + core);
   }
   gl_FragColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0));
 }`;

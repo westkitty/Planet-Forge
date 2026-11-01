@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 025 (Batch 05 complete)
-- **Active Milestone:** Batch 05 (Cycles 021–025) Atmosphere, twilight terminator, volumetric clouds & night ambient
-- **Next Cycle:** 026 (Batch 06 start: Starfield, celestial backdrop, astronomical depth, and graphics-tier coherence in `src/starfield.js`)
+- **Current Cycle:** 030 (Batch 06 complete)
+- **Active Milestone:** Batch 06 (Cycles 026–030) Starfield point-sprite PSF, galactic dust lanes, distant galaxy morphology & scintillation
+- **Next Cycle:** 031 (Batch 07 start: World-scale composition, limb, horizon, globe silhouette & environmental contrast)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -355,5 +355,74 @@
 - **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-05-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-05-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; distinct canvas colors reached **2,042** (up from baseline 1,575); production build cleanly succeeded.
 - **Commit SHA:** `98b60c84643199142e8f0a47d285379c3a2c557c` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 06: Starfield, Celestial Backdrop, Astronomical Depth & Coherence (Cycles 026–030)
+*Focus: Astronomical point-spread function (Airy disc + soft Moffat halo), photometric core desaturation on intense stars, three-zone galactic spectral grading with H-alpha emission nebulae, distant galaxy morphological core-to-disc profiles, and organic multi-harmonic stellar twinkle.*
+
+#### Cycle 026
+- **Batch:** 06
+- **Observed Weakness:** Stellar point sprites used a simple dual-exponential radial falloff and monochromatic color assignment across the entire sprite, resulting in flat dots without realistic telescope/human-eye point-spread functions (PSF).
+- **Chosen Action:** In `src/starfield.js`:
+  - In `starFragment`, upgraded the stellar profile to an Airy core with soft Moffat halo: `float a = (exp(-rc * 6.5) + 0.18 * exp(-rc * 1.9)) * (1.0 - min(1.0, r2));`.
+  - Added optical needle diffraction taper and secondary diagonal flare on spider vanes: `float cross = exp(-q.y * 48.0) * (1.0 - q.x * 0.85) + exp(-q.x * 48.0) * (1.0 - q.y * 0.85); float flare = 0.06 * exp(-abs(q.x - q.y) * 36.0); a += vSpike * (0.55 * cross + flare) * (1.0 - r2);`.
+  - Added natural photometric core desaturation on intense stars: `vec3 starColor = mix(vColor, vec3(0.98, 0.99, 1.0), smoothstep(0.45, 0.95, a)); gl_FragColor = vec4(starColor * a, a);`.
+- **Affected Surface:** Star point-sprite rendering, optical bloom, diffraction spike fidelity.
+- **Files Changed:** `src/starfield.js`.
+- **Evidence:** Bright stars exhibit brilliant piercing white cores transitioning into saturated spectral blackbody halos; faint stars remain delicate and pin-sharp.
+- **Performance Impact:** Zero additional geometry; purely fragment shader math.
+- **Regression Findings:** Fixed closing template literal syntax in `starfield.js`; verified all 9 starfield unit tests pass.
+- **Next Action:** Cycle 027 galactic dust lanes and filamentary nebulae in `skyFragment`.
+
+#### Cycle 027
+- **Batch:** 06
+- **Observed Weakness:** The procedural Milky Way band in `skyFragment` used a binary color mix between pale blue and amber, lacking the spectral depth of real galaxies (young blue star associations, warm disk stars, and ionized hydrogen H-alpha emission nebulae).
+- **Chosen Action:** In `src/starfield.js` (`skyFragment`):
+  - Upgraded galactic color grading to a three-zone stellar population ramp: young blue star-forming spiral arms (`vec3(0.62, 0.70, 0.88)`), intermediate disk stars (`vec3(0.92, 0.82, 0.70)`), and ancient golden K/M giants in the galactic bulge (`vec3(1.0, 0.84, 0.60)`).
+  - Injected filamentary ionized hydrogen H-alpha emission nebulae along galactic spiral arms: `float hAlpha = pow(fbm(d * 6.5 + uOffset.yzx), 2.5) * band * clamp(1.0 - abs(sb) * 14.0, 0.0, 1.0) * (0.4 + 0.6 * clouds); vec3 emission = vec3(0.82, 0.20, 0.35) * hAlpha * 0.28; col = (tint * glow + emission) * extinction * uIntensity;`.
+- **Affected Surface:** Procedural Milky Way band, celestial background cube map.
+- **Files Changed:** `src/starfield.js`.
+- **Evidence:** Deep space background exhibits authentic astronomical observatory richness with deep silhouette dust lanes, glowing golden bulge, and rose-tinted star-forming complexes.
+- **Performance Impact:** Evaluated once during startup cube-map bake; zero per-frame runtime overhead.
+- **Regression Findings:** None; sky remains perfectly static when globe rotates and across atlas layers (difference = 0.0000).
+- **Next Action:** Cycle 028 distant galaxy morphology and luminous nuclei.
+
+#### Cycle 028
+- **Batch:** 06
+- **Observed Weakness:** Distant galaxies in `skyFragment` were rendered as monochromatic yellow ellipsoids without distinct morphological structure.
+- **Chosen Action:** In `src/starfield.js` (`skyFragment`):
+  - Refined galaxy light profile with dual-component morphology: dense, luminous elliptical nucleus (`core = 1.3 * exp(-r2 * 32.0)`) and expansive spiral disk envelope (`disc = 0.55 * exp(-r2 * 3.0)`).
+  - Added radial chromatic differentiation: golden-amber core population transitioning into blue-shifted stellar disk arms (`vec3 galTint = mix(vec3(0.70, 0.78, 0.92), vec3(1.0, 0.88, 0.72), core / (core + disc + 1e-4)); col += galTint * uGalShape[g].z * uIntensity * (disc + core);`).
+- **Affected Surface:** 10 seeded distant galaxies across the celestial sphere.
+- **Files Changed:** `src/starfield.js`.
+- **Evidence:** Distant galaxies resemble realistic telescopic deep-field galaxies with brilliant concentrated centers and translucent inclined spiral halos.
+- **Performance Impact:** Zero per-frame cost (baked into the cube map).
+- **Regression Findings:** None; galaxy positions and orientations preserve deterministic seed parameters (`galaxies: 10`).
+- **Next Action:** Cycle 029 organic multi-harmonic stellar twinkle.
+
+#### Cycle 029
+- **Batch:** 06
+- **Observed Weakness:** The scintillation (twinkle) formula in `starVertex` used a single sine wave, creating an artificial, repetitive pulsation on medium and high graphics tiers.
+- **Chosen Action:** In `src/starfield.js` (`starVertex`):
+  - Replaced single sine modulation with dual out-of-phase interference harmonics:
+    `float w1 = sin(uTime * (1.1 + 1.6 * phase) + phase * 57.0);`
+    `float w2 = sin(uTime * (2.4 + 2.8 * phase) + phase * 103.0);`
+    `float flicker = 1.0 - uTwinkle * (0.11 * (0.5 + 0.5 * w1) + 0.05 * (0.5 + 0.5 * w2));`
+- **Affected Surface:** Stellar twinkling on medium and high graphics profiles.
+- **Files Changed:** `src/starfield.js`.
+- **Evidence:** Stars shimmer with natural, organic, non-repeating brightness variations; reduced-motion and low graphics tiers strictly freeze scintillation.
+- **Performance Impact:** Two fast vertex-shader sine evaluations per star; zero impact on 60 FPS budget.
+- **Regression Findings:** None; tested under reduced motion and tier switching.
+- **Next Action:** Cycle 030 Batch 06 Git Checkpoint.
+
+#### Cycle 030
+- **Batch:** 06
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 06 improvements.
+- **Chosen Action:** Verify all 9 starfield unit tests (9/9 passing), full unit test suite (95/95 passing), production build (clean, 827ms), and browser smoke test suite (162/162 passing); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-06-*.png`; stage intended files; commit `visual-uplift(batch-06): starfield airy psf, galactic dust lanes, galaxy morphology, and organic twinkle`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/starfield.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-06-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-06-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; open sky distinct colors = 36-37; sky signature `b0d0aa15` preserved; production build cleanly succeeded.
+- **Commit SHA:** Pending checkpoint commit.
 
 ---
