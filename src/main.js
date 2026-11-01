@@ -361,6 +361,16 @@ document.querySelector('#export').addEventListener('click', () => {
 let drag = false, lastX = 0, lastY = 0, px = 0, py = 0, lastInteraction = performance.now();
 let velX = 0, velY = 0, inertia = null;
 const canvas = renderer.domElement;
+canvas.addEventListener('webglcontextlost', e => {
+  e.preventDefault();
+  console.warn('Planet Forge: WebGL context lost; standing by for restore.');
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  console.info('Planet Forge: WebGL context restored; regenerating GPU resources.');
+  if (disposed) return;
+  renderedPlanet = null;
+  makeGlobe();
+});
 const pointers = new Map();
 let pinchDistance = 0, suppressTap = false;
 function pointerSpan() {
@@ -587,6 +597,11 @@ let lastFrame = performance.now(), prevFrame = 0;
 function animate(now = performance.now()) {
   if (disposed) return;
   requestAnimationFrame(animate);
+  if (document.hidden) {
+    lastFrame = now;
+    prevFrame = now;
+    return;
+  }
   const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
   const motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
