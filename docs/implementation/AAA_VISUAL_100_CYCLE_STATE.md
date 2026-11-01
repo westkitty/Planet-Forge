@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 015 (Batch 03 complete)
-- **Active Milestone:** Batch 03 (Cycles 011–015) Mountain silhouettes, inland lakes, riparian corridors & bathymetry
-- **Next Cycle:** 016 (Batch 04 start: Ocean lighting response, specular Fresnel & water polish)
+- **Current Cycle:** 025 (Batch 05 complete)
+- **Active Milestone:** Batch 05 (Cycles 021–025) Atmosphere, twilight terminator, volumetric clouds & night ambient
+- **Next Cycle:** 026 (Batch 06 start: Starfield, celestial backdrop, astronomical depth, and graphics-tier coherence in `src/starfield.js`)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -286,5 +286,74 @@
 - **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
 - **Evidence:** Full regression suite passing: 95/95 unit tests passing, production build succeeded, 162/162 smoke checks passing, distinct colors reached 1,985, desktop and mobile visual artifacts saved to `docs/implementation/visual-uplift-100/checkpoint-04-*.png`.
 - **Commit SHA:** `0e713debbce76c37f7617f9aac0ca7924defd71a` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 05: Atmosphere, Twilight Terminator, Volumetric Clouds & Night Ambient (Cycles 021–025)
+*Focus: Atmospheric Rayleigh limb scattering, forward Mie-phase scattering, twilight sunset terminator softening, cloud low-sun shadows, and night-side celestial ambient glow.*
+
+#### Cycle 021
+- **Batch:** 05
+- **Observed Weakness:** The day/night terminator was excessively sharp and abrupt across land and ocean terrain, with zero atmospheric twilight forward-scattering in the transition zone between day and night.
+- **Chosen Action:** In `src/presentation.js`, in `<aomap_fragment>` on the globe PBR material, added smooth twilight forward-scattering glow along the terminator:
+  `float sunDot = dot(normalize(vLocalDir), normalize(uSunLocal));`
+  `float twilightGlow = smoothstep(-0.14, 0.02, sunDot) * smoothstep(0.12, -0.02, sunDot);`
+  `reflectedLight.indirectDiffuse += vec3(0.82, 0.38, 0.14) * (twilightGlow * 0.12);`
+- **Affected Surface:** Globe day/night transition, twilight zone.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Soft, warm golden-amber dusk/dawn horizon glow across terrain and ocean cells along the planetary terminator.
+- **Performance Impact:** Low-cost dot product and smoothsteps evaluated only in natural view mode (`uNatural > 0.5`).
+- **Regression Findings:** None; day/night terminator test passes with high contrast ratio (7.8x noon to midnight).
+- **Next Action:** Cycle 022 atmosphere limb Rayleigh scattering enhancement.
+
+#### Cycle 022
+- **Batch:** 05
+- **Observed Weakness:** Atmospheric halo mesh (`atmosphereMaterial`) had a static blue rim with weak sunset color grading, lacking forward Mie-phase sun scattering when looking toward the sun.
+- **Chosen Action:** In `src/presentation.js`:
+  - Added forward Mie-phase scattering: `float forward = pow(clamp(dot(V, uSun), 0.0, 1.0), 3.5) * day; col += vec3(0.32, 0.62, 0.96) * (forward * 0.30 * rim);`.
+  - Enriched twilight sunset rim saturation and depth: `col = mix(col, vec3(1.0, 0.44, 0.14), twilight * 0.70 * pow(rim, 0.8));`.
+  - Modulated atmosphere alpha: `gl_FragColor = vec4(col, rim * (0.16 + 0.54 * day + 0.32 * twilight));`.
+- **Affected Surface:** Atmospheric limb, horizon halo, solar forward scattering.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Atmospheric limb exhibits a glowing Rayleigh blue fringe on the daylight hemisphere, transitions into deep golden-red at dusk, and increases in brilliance when angled toward the sun.
+- **Performance Impact:** Evaluated on simple inverted sphere geometry; zero raster overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 023 volumetric/stratified clouds and low-sun shadow elongation.
+
+#### Cycle 023
+- **Batch:** 05
+- **Observed Weakness:** Clouds were flat, uniform white sheets without internal density variation or sunset coloration; cloud ground shadows were cast at a constant offset regardless of sun elevation.
+- **Chosen Action:** In `src/presentation.js`:
+  - In `cloudMaterial.fragmentShader`, added cloud density self-shading (`tint *= mix(vec3(0.85, 0.88, 0.92), vec3(1.0), 1.0 - density * 0.28 * (1.0 - light * 0.4))`) and golden-coral sunset rim lighting (`tint = mix(tint, vec3(0.98, 0.56, 0.32), cloudTwilight * 0.62)`).
+  - Forwarded `uniform float uNatural;` into `cloudMaterial.fragmentShader`.
+  - In `<aomap_fragment>`, made cloud ground shadow elongation adaptive to solar elevation: `float sunHeight = clamp(dot(normalize(vLocalDir), normalize(uSunLocal)), 0.08, 1.0); float shadowDist = min(0.012 / sunHeight, 0.030); float cloudShade = 1.0 - 0.48 * cloudCover(normalize(vLocalDir + uSunLocal * shadowDist));`.
+- **Affected Surface:** Atmospheric cloud deck, cloud ground shadows, sunset cloud lighting.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Clouds cast realistic elongated shadows at dawn/dusk; cloud tops catch golden light while dense cores show volumetric shading.
+- **Performance Impact:** Standard uniform math; shadow texture sampling preserved.
+- **Regression Findings:** Fixed missing `uniform float uNatural;` declaration in cloud fragment shader to avoid Three.js shader compile warning.
+- **Next Action:** Cycle 024 planetary night-side celestial ambient glow.
+
+#### Cycle 024
+- **Batch:** 05
+- **Observed Weakness:** The unlit night hemisphere was pitch black (except for settlement lights), failing to convey the faint celestial starlight and zodiacal light that illuminates a real planet in deep space.
+- **Chosen Action:** In `src/presentation.js`, in `<emissivemap_fragment>`, added subtle deep celestial ambient sheen across night-side oceans and continents:
+  `vec3 nightGlow = mix(vec3(0.003, 0.006, 0.012), vec3(0.005, 0.010, 0.018), ocean) * nightSide * uNatural;`
+  `totalEmissiveRadiance += nightGlow + vec3(1.0, 0.68, 0.32) * vLights * vLights * nightSide * uNatural * uLightsOn * 1.1;`
+- **Affected Surface:** Night hemisphere presentation, planetary dark-side visibility.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** The dark side of the globe reveals faint continent silhouettes and oceanic sheen under starlight without violating the night-luminance smoke test ceiling (measured 24.9 desktop / 26.2 mobile vs 194.0 noon).
+- **Performance Impact:** Negligible arithmetic addition.
+- **Regression Findings:** Distinct canvas colors jumped from 1,985 to a record **2,042** colors!
+- **Next Action:** Cycle 025 Batch 05 Git Checkpoint.
+
+#### Cycle 025
+- **Batch:** 05
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 05 improvements.
+- **Chosen Action:** Run full unit tests (95/95 passing), production build (clean, 2.92s), and browser smoke test suite (162/162 passing); capture visual artifacts; stage intended files; commit `visual-uplift(batch-05): twilight terminator, rayleigh limb, stratified clouds, and night ambient`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-05-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-05-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; distinct canvas colors reached **2,042** (up from baseline 1,575); production build cleanly succeeded.
+- **Commit SHA:** Pending checkpoint commit.
 
 ---
