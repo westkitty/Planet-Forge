@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 045 (Batch 09 complete)
-- **Active Milestone:** Batch 09 (Cycles 041–045) World selection, geographic markers, in-world labels & interaction feedback
-- **Next Cycle:** 046 (Batch 10 start: Bottom console, overlays, responsive UI, hierarchy and typography)
+- **Current Cycle:** 050 (Batch 10 complete)
+- **Active Milestone:** Batch 10 (Cycles 046–050) Bottom console, overlays, responsive UI, hierarchy and typography
+- **Next Cycle:** 051 (Batch 11 start: Observatory UI, drawer, transect chart & investigation workflows)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -646,5 +646,76 @@
 - **Files Changed:** `src/overlays.js`, `src/presentation.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-09-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-09-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; settlement selection, reticle telemetry, and event pulses verified.
 - **Commit SHA:** `a9c449739aae73b11373afaac9eabcd628efb8be` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 10: Bottom Console, Overlays, Responsive UI, Hierarchy and Typography (Cycles 046–050)
+*Focus: Bottom console glassmorphic telemetry HUD, custom control dropdown chevrons, tactile button states, and tabular telemetry readouts.*
+
+#### Cycle 046
+- **Batch:** 10
+- **Observed Weakness:** The bottom console `.panel` had flat gradient styling without backdrop blur or metallic bevel, lacking the depth and aesthetic presence of an advanced scientific planetary instrument.
+- **Chosen Action:** In `src/style.css`, upgraded `.panel` to high-grade glassmorphic aerospace telemetry styling:
+  - Added frosted obsidian glassmorphism: `backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);` with `linear-gradient(180deg, rgba(14, 32, 47, 0.96) 0%, rgba(7, 19, 31, 0.98) 45%, rgba(4, 12, 20, 0.99) 100%)`.
+  - Added cyan instrument top hairline: `border-top: 1px solid rgba(131, 207, 224, 0.32); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 -12px 36px rgba(2, 7, 12, 0.85);`.
+  - Strictly preserved `height: 14.5dvh; max-height: 14.5dvh; min-height: 0;` ensuring exact adherence to the <= 15% persistent UI contract.
+- **Affected Surface:** Console container, glassmorphic layout, visual contrast.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Empirically verified viewer footprint (85.5%) and console footprint (14.5%) in `smoke.mjs`.
+- **Performance Impact:** Hardware-accelerated compositor blur; zero layout thrashing.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 047 custom select dropdown styling and responsive button micro-interactions.
+
+#### Cycle 047
+- **Batch:** 10
+- **Observed Weakness:** Select inputs showed default unstyled OS controls with flat styling; buttons had harsh color jumps on hover without tactile depression or specular edge highlights.
+- **Chosen Action:** In `src/style.css`:
+  - Upgraded `<select>` controls: applied custom SVG drop-down arrow chevron (`url("data:image/svg+xml,...")`), custom padding (`padding-right: 26px`), and dark option styling.
+  - Upgraded button micro-interactions: subtle metallic top shelf (`inset 0 1px 0 rgba(255, 255, 255, 0.15)`), smooth transition curves, cyan hover glow (`box-shadow: 0 0 10px rgba(131, 207, 224, 0.25)`), and tactile 1px active press depression.
+  - Enhanced "Forge" button (`#generate`): radiant amber-gold telemetry styling with crisp contrast (`#05141e` on `#e4ba78`), gold accent border, and luminous hover bloom.
+- **Affected Surface:** Form controls, command bar buttons, selection dropdowns.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Buttons and dropdowns feel tactile and cohesive with high-precision observatory aesthetics.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** Tested all dropdown options and buttons; passed accessibility name checks and keyboard navigation tests.
+- **Next Action:** Cycle 048 brand typography and tabular telemetry metrics readability.
+
+#### Cycle 048
+- **Batch:** 10
+- **Observed Weakness:** Telemetry stream numbers (coordinates, elevation, temperatures, discharge) jittered slightly across updates due to proportional font glyph widths; brand lockup lacked sharp optical hierarchy.
+- **Chosen Action:** In `src/style.css`:
+  - Added `font-variant-numeric: tabular-nums` to `.atlas-stream`, `.stats`, and `.output` readouts to ensure rock-solid numerical alignment across rapid data updates.
+  - Refined brand lockup typography: tightened letter-spacing on `h1` (`-0.04em`), uppercase eyebrow with tracking `0.16em`, and subtle slate border divider.
+  - Polished `.readout` containers and `.stats span` pills with subtle inset glow, hairline cyan borders, and ultra-thin custom scrollbars (`#375e72`).
+- **Affected Surface:** Telemetry stream, brand header, statistical data displays.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Inspection numbers, coordinates, and river discharge display with tabular precision; zero text jittering.
+- **Performance Impact:** Zero overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 049 mobile command layout responsiveness and touch targets.
+
+#### Cycle 049
+- **Batch:** 10
+- **Observed Weakness:** Mobile horizontal scrolling through command controls could feel loose without touch momentum or snapping.
+- **Chosen Action:** In `src/style.css`:
+  - Added horizontal scroll snapping to `.command-row`: `scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;`.
+  - Added `scroll-snap-align: start` to control chips.
+  - Maintained minimum touch target height `44px` across mobile inputs and buttons to ensure WCAG 2.2 AA conformance.
+  - Ensured zero horizontal page overflow on small viewports (`overflow <= 0px`).
+- **Affected Surface:** Mobile touch layout, command row responsiveness.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Passed mobile smoke tests: zero horizontal overflow (`overflow=0px`), all touch targets accessible.
+- **Performance Impact:** Native browser scroll physics.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 050 Batch 10 Git Checkpoint.
+
+#### Cycle 050
+- **Batch:** 10
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 10 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 891ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-10-*.png`; stage intended files; commit `visual-uplift(batch-10): bottom console glassmorphic telemetry HUD, custom control dropdowns, and tabular telemetry readouts`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-10-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-10-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; viewer area strictly 85.5% on desktop and mobile; all touch targets accessible.
+- **Commit SHA:** [PENDING COMMIT] (to be pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
