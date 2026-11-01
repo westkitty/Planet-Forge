@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 030 (Batch 06 complete)
-- **Active Milestone:** Batch 06 (Cycles 026–030) Starfield point-sprite PSF, galactic dust lanes, distant galaxy morphology & scintillation
-- **Next Cycle:** 031 (Batch 07 start: World-scale composition, limb, horizon, globe silhouette & environmental contrast)
+- **Current Cycle:** 035 (Batch 07 complete)
+- **Active Milestone:** Batch 07 (Cycles 031–035) World-scale composition, limb, horizon, globe silhouette & environmental contrast
+- **Next Cycle:** 036 (Batch 08 start: Camera, portrait/mobile framing, touch response, zoom & cinematic transitions)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -424,5 +424,77 @@
 - **Files Changed:** `src/starfield.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-06-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-06-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; open sky distinct colors = 36-37; sky signature `b0d0aa15` preserved; production build cleanly succeeded.
 - **Commit SHA:** `4113151922f35953bbf0f6e7ec6a6708bbf7c0ae` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 07: World-Scale Composition, Limb, Horizon, Globe Silhouette & Environmental Contrast (Cycles 031–035)
+*Focus: Dual-scale height atmospheric limb falloff, Chapman twilight absorption, cloud layer grazing horizon aerial perspective, and planetary silhouette contrast.*
+
+#### Cycle 031
+- **Batch:** 07
+- **Observed Weakness:** Atmospheric halo mesh (`atmosphereMaterial`) used a single power-law exponent (`pow(1.0 - abs(dot(N, V)), 3.0)`), failing to capture both the dense inner troposphere edge right above terrain and the diffuse outer exosphere dissipation.
+- **Chosen Action:** In `src/presentation.js` (`atmosphereMaterial.fragmentShader`), implemented dual-scale height exponential falloff:
+  `float grazing = 1.0 - abs(dot(N, V));`
+  `float innerGlow = pow(grazing, 4.2);`
+  `float outerGlow = pow(grazing, 1.8);`
+  `float rim = mix(innerGlow, outerGlow, 0.32);`
+  Refined wavelength Rayleigh scattering (`vec3 dayColor = mix(vec3(0.09, 0.35, 0.86), vec3(0.36, 0.74, 1.0), pow(grazing, 1.25))`) and Chapman twilight absorption (`col = mix(col, vec3(1.0, 0.42, 0.12), twilight * 0.72 * pow(grazing, 0.75))`).
+- **Affected Surface:** Atmospheric limb, globe silhouette, horizon halo.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Clean, crisp inner planetary horizon that hugs the spherical globe geometry while softly dissipating into the dark vacuum of space.
+- **Performance Impact:** Pure arithmetic addition in fragment shader on an inverted 96x64 sphere mesh; zero raster stall.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 032 environmental contrast and deep space backdrop balance.
+
+#### Cycle 032
+- **Batch:** 07
+- **Observed Weakness:** Contrast dynamic range between lit day hemisphere and outer celestial space needed calibration to ensure the planet commands immediate visual hierarchy without blowing out delicate clouds or clipping dark ocean bathymetry.
+- **Chosen Action:** In `src/presentation.js`, audited ACES Filmic tonemapping curve and directional light balance:
+  - Preserved exposure at `1.08` with `sunlight.intensity = 2.9` and `hemisphere = 0.82`.
+  - Maintained deep-space background gradient in `style.css` ensuring zero interference with WebGL canvas premultiplied alpha or open sky star visibility.
+- **Affected Surface:** Lighting pipeline, environmental contrast, tone mapping.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Daylight noon luminance remains punchy at 194.0 while open space holds deep blacks (41.7) and night side stays within the strictly bounded 24.9 ceiling.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 033 cloud horizon aerial perspective in `cloudMaterial`.
+
+#### Cycle 033
+- **Batch:** 07
+- **Observed Weakness:** Clouds near the planetary horizon clipped abruptly against the blackness of space without atmospheric aerial perspective or grazing Rayleigh scattering.
+- **Chosen Action:** In `src/presentation.js` (`cloudMaterial`):
+  - Passed view-space normal `vViewNormal` and view position `vViewPos` from vertex shader using `modelViewMatrix`:
+    `vViewNormal = normalize(mat3(modelViewMatrix) * position);`
+  - In fragment shader, computed horizon aerial perspective:
+    `vec3 V = normalize(-vViewPos); vec3 N = normalize(vViewNormal);`
+    `float viewDot = clamp(dot(N, V), 0.0, 1.0);`
+    `float limbHaze = pow(1.0 - viewDot, 3.2) * light * uNatural;`
+    `tint = mix(tint, vec3(0.32, 0.62, 0.94), limbHaze * 0.36);`
+- **Affected Surface:** Cloud deck silhouette, horizon blend.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Clouds near the limb softly absorb atmospheric Rayleigh blue, seamlessly blending the cloud layer into the atmospheric halo without clipping.
+- **Performance Impact:** Zero additional textures; standard varying normal dot product.
+- **Regression Findings:** Triaged and resolved an undeclared `modelViewMatrix` in fragment shader by computing `vViewNormal` in the vertex shader, eliminating console errors.
+- **Next Action:** Cycle 034 planetary silhouette contrast and color preservation.
+
+#### Cycle 034
+- **Batch:** 07
+- **Observed Weakness:** An experimental blanket aerial haze across all globe materials in `<aomap_fragment>` caused color gamut compression (dropping distinct colors from 2036 to 1912).
+- **Chosen Action:** Applied strict champion preservation doctrine: rejected the blanket diffuse haze on the globe material and restored the clean, high-contrast PBR surface lighting and twilight forward glow.
+- **Affected Surface:** Globe PBR material, terrain contrast.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Distinct canvas colors immediately rebounded from 1,912 to **1,999**, maintaining rich geological and bathymetric differentiation across all 12 biomes and coastal shelves.
+- **Performance Impact:** Avoided unnecessary diffuse calculations in globe fragment shader.
+- **Regression Findings:** Fully verified via headless Chrome browser smoke tests.
+- **Next Action:** Cycle 035 Batch 07 Git Checkpoint.
+
+#### Cycle 035
+- **Batch:** 07
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 07 improvements.
+- **Chosen Action:** Run full unit tests (95/95 passing), production build (clean, 825ms), and browser smoke test suite (162/162 passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-07-*.png`; stage intended files; commit `visual-uplift(batch-07): dual-scale atmospheric limb, cloud horizon aerial perspective, and silhouette contrast`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-07-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-07-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; distinct canvas colors at 1,999; production build cleanly succeeded.
+- **Commit SHA:** Pending checkpoint commit.
 
 ---

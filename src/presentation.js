@@ -68,16 +68,19 @@ void main() { vec4 world = modelMatrix * vec4(position, 1.0); vWorldPosition = w
     fragmentShader: `uniform vec3 uSun; uniform float uNatural; varying vec3 vWorldNormal; varying vec3 vWorldPosition;
 void main() {
   vec3 N = normalize(vWorldNormal); vec3 V = normalize(cameraPosition - vWorldPosition);
-  float rim = pow(1.0 - abs(dot(N, V)), 3.0);
+  float grazing = 1.0 - abs(dot(N, V));
+  float innerGlow = pow(grazing, 4.2);
+  float outerGlow = pow(grazing, 1.8);
+  float rim = mix(innerGlow, outerGlow, 0.32);
   float s = dot(N, uSun);
   float day = smoothstep(-0.25, 0.55, s);
-  vec3 dayColor = mix(vec3(0.10, 0.36, 0.84), vec3(0.38, 0.72, 0.99), pow(rim, 1.35));
-  vec3 nightColor = vec3(0.022, 0.07, 0.19);
+  vec3 dayColor = mix(vec3(0.09, 0.35, 0.86), vec3(0.36, 0.74, 1.0), pow(grazing, 1.25));
+  vec3 nightColor = vec3(0.020, 0.065, 0.18);
   vec3 col = mix(nightColor, dayColor, day);
-  float forward = pow(clamp(dot(V, uSun), 0.0, 1.0), 3.5) * day;
-  col += vec3(0.32, 0.62, 0.96) * (forward * 0.30 * rim);
+  float forward = pow(clamp(dot(V, uSun), 0.0, 1.0), 3.8) * day;
+  col += vec3(0.34, 0.66, 1.0) * (forward * 0.32 * rim);
   float twilight = exp(-pow(s / 0.16, 2.0)) * uNatural;
-  col = mix(col, vec3(1.0, 0.44, 0.14), twilight * 0.70 * pow(rim, 0.8));
+  col = mix(col, vec3(1.0, 0.42, 0.12), twilight * 0.72 * pow(grazing, 0.75));
   gl_FragColor = vec4(col, rim * (0.16 + 0.54 * day + 0.32 * twilight));
 }`,
     side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
@@ -186,8 +189,9 @@ totalEmissiveRadiance += nightGlow + vec3(1.0, 0.68, 0.32) * vLights * vLights *
   let clouds = null, cloudTexture = null, cloudKey = '', cloudsWanted = true, cloudsAllowed = true, currentPlanet = null, currentGlobe = null, cloudMonth = -1;
   const cloudMaterial = new THREE.ShaderMaterial({
     uniforms: { uSunLocal: shared.uSunLocal, uCloudTex: shared.uCloudTex, uCloudTime: shared.uCloudTime, uDetail: { value: 1 }, uNatural: shared.uNatural },
-    vertexShader: `varying vec3 vLocalDir; void main() { vLocalDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform vec3 uSunLocal; uniform float uDetail; uniform float uNatural; varying vec3 vLocalDir;
+    vertexShader: `varying vec3 vLocalDir; varying vec3 vViewNormal; varying vec3 vViewPos;
+void main() { vLocalDir = normalize(position); vec4 mv = modelViewMatrix * vec4(position, 1.0); vViewPos = mv.xyz; vViewNormal = normalize(mat3(modelViewMatrix) * position); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uSunLocal; uniform float uDetail; uniform float uNatural; varying vec3 vLocalDir; varying vec3 vViewNormal; varying vec3 vViewPos;
 ${cloudGlsl}
 float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float vn(vec3 x) { vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -205,6 +209,11 @@ void main() {
   tint = mix(tint, vec3(0.98, 0.56, 0.32), cloudTwilight * 0.62);
   float density = smoothstep(0.25, 0.85, c);
   tint *= mix(vec3(0.85, 0.88, 0.92), vec3(1.0), 1.0 - density * 0.28 * (1.0 - light * 0.4));
+  vec3 V = normalize(-vViewPos);
+  vec3 N = normalize(vViewNormal);
+  float viewDot = clamp(dot(N, V), 0.0, 1.0);
+  float limbHaze = pow(1.0 - viewDot, 3.2) * light * uNatural;
+  tint = mix(tint, vec3(0.32, 0.62, 0.94), limbHaze * 0.36);
   gl_FragColor = vec4(tint, c * (0.12 + 0.68 * light));
 }`,
     transparent: true, depthWrite: false
