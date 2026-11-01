@@ -1,16 +1,77 @@
-/* Planet Forge / astronomical instrument: the console is <=14.5% of the viewport. */
+/* Planet Forge / astronomical instrument: floating glassmorphic console dock. */
 :root{color-scheme:dark;--ink:#03101a;--panel:#081824;--line:#2c4b5b;--muted:#8ca9ba;--bright:#effaff;--accent:#83cfe0;--warm:#e4ba78}
 *{box-sizing:border-box}
 html,body,#app{margin:0;width:100%;height:100%;overflow:hidden}
 body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--ink);color:var(--bright);-webkit-font-smoothing:antialiased}
 #app{position:fixed;inset:0;overflow:hidden}
 #viewer{position:absolute;inset:0 0 14.5dvh 0;overflow:hidden;background:radial-gradient(ellipse at 47% 58%,rgba(35,78,112,.30) 0%,rgba(8,26,48,.2) 31%,transparent 68%),radial-gradient(ellipse at 16% 8%,#102a42 0%,#071425 46%,#02070f 100%)}
+[data-dock-mode="floating"] #viewer,[data-dock-mode="top"] #viewer,[data-dock-mode="left"] #viewer,[data-dock-mode="right"] #viewer{inset:0}
 #viewer:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 84% 14%,rgba(47,103,143,.11),transparent 38%),linear-gradient(120deg,rgba(11,39,62,.15),transparent 48%);pointer-events:none}
 #viewer canvas{display:block;position:relative;width:100%;height:100%;touch-action:none;cursor:grab}
 #viewer canvas:active{cursor:grabbing}
 #viewer canvas:focus-visible{outline:2px solid var(--warm);outline-offset:-3px}
-.panel{position:absolute;bottom:0;left:0;right:0;height:14.5dvh;max-height:14.5dvh;min-height:0;padding:6px 14px 5px;background:linear-gradient(180deg,rgba(14,32,47,.96) 0%,rgba(7,19,31,.98) 45%,rgba(4,12,20,.99) 100%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(131,207,224,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 -12px 36px rgba(2,7,12,.85);z-index:2;display:grid;grid-template-rows:minmax(0,1fr) minmax(28px,38%);gap:5px;overflow:hidden}
-.command-row{min-width:0;min-height:0;display:flex;align-items:center;gap:11px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#375b70 transparent;padding:0 0 2px}
+
+/* Snap boundary edge glow guides */
+.snap-guide{position:absolute;pointer-events:none;z-index:15;opacity:0;transition:opacity .15s ease}
+.snap-guide-top{top:3px;left:14px;right:14px;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 14px var(--accent);border-radius:2px}
+.snap-guide-bottom{bottom:3px;left:14px;right:14px;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 14px var(--accent);border-radius:2px}
+.snap-guide-left{left:3px;top:14px;bottom:14px;width:3px;background:linear-gradient(180deg,transparent,var(--accent),transparent);box-shadow:0 0 14px var(--accent);border-radius:2px}
+.snap-guide-right{right:3px;top:14px;bottom:14px;width:3px;background:linear-gradient(180deg,transparent,var(--accent),transparent);box-shadow:0 0 14px var(--accent);border-radius:2px}
+[data-snap-preview="top"] .snap-guide-top,[data-snap-preview="bottom"] .snap-guide-bottom,[data-snap-preview="left"] .snap-guide-left,[data-snap-preview="right"] .snap-guide-right{opacity:1}
+
+/* Floating partially transparent glassmorphic UI dock */
+.panel{position:absolute;z-index:20;background:linear-gradient(135deg,rgba(14,34,52,.76) 0%,rgba(8,22,34,.82) 50%,rgba(4,12,20,.87) 100%);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(131,207,224,.36);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.16);transition:box-shadow .2s ease,border-color .2s ease,transform .12s ease;overflow:hidden}
+.panel:hover{border-color:rgba(131,207,224,.55);box-shadow:0 14px 36px rgba(0,0,0,.68),inset 0 1px 0 rgba(255,255,255,.22)}
+.panel.panel--dragging{cursor:grabbing;user-select:none;transition:none;box-shadow:0 24px 60px rgba(0,0,0,.78),inset 0 1px 0 rgba(255,255,255,.28);transform:scale(1.008)}
+.panel.panel--snap-preview-bottom{border-bottom-color:var(--accent)}
+.panel.panel--snap-preview-top{border-top-color:var(--accent)}
+.panel.panel--snap-preview-left{border-left-color:var(--accent)}
+.panel.panel--snap-preview-right{border-right-color:var(--accent)}
+
+/* Dock bar, grip handle & tools */
+.panel-dock-bar{display:flex;align-items:center;justify-content:space-between;height:16px;min-height:16px;padding:0 4px;margin-bottom:2px;border-bottom:1px solid rgba(131,207,224,.15);cursor:grab;touch-action:none}
+.panel-dock-bar:active,.panel--dragging .panel-dock-bar{cursor:grabbing}
+.panel-grip{display:flex;align-items:center;gap:6px;padding:1px 6px;cursor:grab;border-radius:4px;transition:background .12s ease}
+.panel-grip:hover{background:rgba(131,207,224,.12)}
+.panel-grip:focus-visible{outline:2px solid var(--warm);outline-offset:1px}
+.grip-dots{display:flex;align-items:center;gap:3px}
+.grip-dots span{display:inline-block;width:3.5px;height:3.5px;border-radius:50%;background:rgba(131,207,224,.65);box-shadow:0 0 2px rgba(131,207,224,.4)}
+.grip-label{font-size:8px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);opacity:.75}
+.dock-actions{display:flex;align-items:center;gap:4px}
+.dock-tool-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:15px;min-height:15px;padding:0;border-radius:3px;border:1px solid rgba(131,207,224,.3);background:rgba(15,38,54,.6);color:var(--accent);cursor:pointer;transition:background .12s ease,border-color .12s ease,color .12s ease}
+.dock-tool-btn:hover{background:rgba(35,93,116,.75);border-color:var(--accent);color:#fff}
+.dock-tool-btn:focus-visible{outline:2px solid var(--warm);outline-offset:1px}
+
+/* Horizontal dock layout (Default & Top/Bottom snaps) */
+.panel.panel--horizontal{width:100%;height:14.5dvh;max-height:14.5dvh;min-height:94px;display:grid;grid-template-rows:16px minmax(0,1fr) minmax(26px,34px);gap:3px;padding:4px 12px 5px}
+.panel.panel--dock-bottom{bottom:0;left:0;right:0;width:100%;border-radius:12px 12px 0 0;border-bottom:none;transform:none;top:auto}
+.panel.panel--dock-top{top:0;left:0;right:0;width:100%;border-radius:0 0 12px 12px;border-top:none;transform:none;bottom:auto}
+.panel.panel--floating.panel--horizontal,.panel.panel--dragging.panel--horizontal{width:min(760px,calc(100vw - 24px));border-radius:12px;border:1px solid rgba(131,207,224,.36);transform:none}
+.panel.panel--horizontal .command-row{min-width:0;min-height:0;display:flex;align-items:center;gap:10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#375b70 transparent;padding:0 0 2px}
+.panel.panel--horizontal .atlas-stream{display:flex;align-items:stretch;gap:8px;overflow-x:auto;overflow-y:hidden;min-height:0;min-width:0;scrollbar-width:thin;scrollbar-color:#375e72 transparent;font-variant-numeric:tabular-nums}
+
+/* Vertical dock layout (Left/Right snaps) */
+.panel.panel--vertical{width:330px;max-width:calc(100vw - 24px);height:calc(100vh - 24px);max-height:calc(100vh - 24px);min-height:360px;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px}
+.panel.panel--dock-left{left:12px;top:12px;bottom:12px;right:auto;transform:none}
+.panel.panel--dock-right{right:12px;top:12px;bottom:12px;left:auto;transform:none}
+.panel.panel--vertical .panel-dock-bar{margin-bottom:0}
+.panel.panel--vertical .command-row{display:flex;flex-direction:column;align-items:stretch;overflow-y:auto;overflow-x:hidden;gap:7px;flex:0 1 auto;max-height:56%;padding-right:2px;scrollbar-width:thin;scrollbar-color:#375b70 transparent}
+.panel.panel--vertical .brand{border-right:none;border-bottom:1px solid rgba(55,85,101,.6);padding-right:0;padding-bottom:5px;flex:0 0 auto;width:100%}
+.panel.panel--vertical .control{width:100%;flex-basis:auto;flex:0 0 auto}
+.panel.panel--vertical .action-group{width:100%;padding-top:2px;display:flex;flex-wrap:wrap;gap:5px}
+.panel.panel--vertical .action-group button{flex:1 1 calc(33.3% - 4px);min-width:60px}
+.panel.panel--vertical .atlas-stream{display:flex;flex-direction:column;align-items:stretch;overflow-y:auto;overflow-x:hidden;gap:6px;flex:1 1 auto;min-height:100px;border-top:1px solid rgba(131,207,224,.22);padding-top:6px;padding-right:2px;scrollbar-width:thin;scrollbar-color:#375e72 transparent}
+.panel.panel--vertical .readout{flex-direction:column;align-items:stretch;width:100%;min-width:0;padding:5px 8px;gap:4px}
+.panel.panel--vertical .readout h2{margin:0 0 2px}
+.panel.panel--vertical .readout .output{width:100%;max-width:100%}
+.panel.panel--vertical .readout-stats{min-width:0;width:100%}
+.panel.panel--vertical .stats{flex-wrap:wrap;gap:4px}
+.panel.panel--vertical .readout-notes{min-width:0;max-width:100%}
+.panel.panel--vertical .readout-notes .notice{max-width:100%}
+
+/* Floating free */
+.panel.panel--floating{transform:none}
+
 .brand{flex:0 0 162px;min-width:0;padding-right:10px;border-right:1px solid rgba(55,85,101,.75)}
 .brand .eyebrow{display:block;color:var(--accent);font-size:8.5px;font-weight:750;line-height:1.1;letter-spacing:.16em;text-transform:uppercase}
 h1{margin:1px 0 0;font-size:16.5px;letter-spacing:-.04em;font-weight:780;line-height:1.1;color:#effaff}
@@ -45,7 +106,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focu
 #random:hover,#export:hover{background:linear-gradient(180deg,#1e455f,#133246);border-color:#6398b2}
 #observatory{background:linear-gradient(180deg,#1b4b5e,#113645);border-color:#4a8298}
 #observatory:hover{background:linear-gradient(180deg,#235d74,#164254);border-color:#72b2cc}
-.atlas-stream{display:flex;align-items:stretch;gap:8px;overflow-x:auto;overflow-y:hidden;min-height:0;min-width:0;scrollbar-width:thin;scrollbar-color:#375e72 transparent;font-variant-numeric:tabular-nums}
 .readout{display:flex;align-items:center;flex:0 0 auto;gap:9px;border:1px solid rgba(40,67,85,.85);border-radius:6px;background:rgba(9,26,38,.85);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 2px 6px rgba(0,0,0,.35);padding:4px 10px;min-width:0;max-height:100%}
 .readout h2{flex:0 0 auto;margin:0;color:#7ec2d4;font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap;font-weight:800}
 .readout .output,.notice{font-size:10px;line-height:1.36;color:#d2e4ee;min-width:0;max-height:100%;overflow:auto;scrollbar-width:thin;scrollbar-color:#3f687d transparent;font-variant-numeric:tabular-nums}
@@ -56,8 +116,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focu
 .readout-notes{min-width:260px;max-width:320px}
 .readout-notes .notice{margin:0;max-width:230px;max-height:100%}
 .readout:focus-within{border-color:#80c7d7;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 8px rgba(128,199,215,.3)}
+
 @media(max-width:800px){
-  .panel{padding:5px 8px 5px;gap:3px;grid-template-rows:minmax(0,1fr) minmax(26px,35%)}
+  .panel.panel--horizontal{padding:4px 8px 5px;gap:2px;grid-template-rows:16px minmax(0,1fr) minmax(26px,34px)}
   .brand{display:none}
   .command-row{gap:8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
   .command-row > *{scroll-snap-align:start}
@@ -73,7 +134,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focu
   .readout{padding:3px 8px}
 }
 @media(max-height:550px){
-  .panel{padding-top:2px;padding-bottom:2px;gap:0;overflow-y:auto;display:block}
+  .panel.panel--horizontal{padding-top:2px;padding-bottom:2px;gap:0;overflow-y:auto;display:block}
   .command-row{height:49px}
   .atlas-stream{height:30px}
   .control label{font-size:8px;line-height:8px}
@@ -82,8 +143,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focu
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
-/* Observatory drawer (opened on demand; overlays the viewer, never resizes it) and in-world labels */
-.drawer{position:absolute;z-index:4;top:10px;right:10px;bottom:calc(14.5dvh + 10px);width:min(390px,94vw);display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(8,22,34,.96) 0%,rgba(5,14,23,.98) 100%);border:1px solid rgba(131,207,224,.35);border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 16px 48px rgba(0,0,0,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:12.5px;line-height:1.4}
+/* Observatory drawer (opened on demand; overlays the viewer) and in-world labels */
+.drawer{position:absolute;z-index:40;top:10px;right:10px;max-height:calc(100vh - 20px);width:min(390px,94vw);display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(8,22,34,.96) 0%,rgba(5,14,23,.98) 100%);border:1px solid rgba(131,207,224,.35);border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 16px 48px rgba(0,0,0,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:12.5px;line-height:1.4}
 .drawer[hidden]{display:none}
 .drawer-head{display:flex;align-items:flex-start;gap:6px;padding:8px 10px 6px;border-bottom:1px solid rgba(55,95,118,.5);background:rgba(11,28,42,.45);border-radius:9px 9px 0 0}
 .drawer-head [role=tablist]{display:flex;flex-wrap:wrap;gap:4px;flex:1}
@@ -113,7 +174,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focu
 .cell-label{position:absolute;left:0;top:0;z-index:2;pointer-events:none;white-space:nowrap;padding:4px 9px;border-radius:6px;background:rgba(5,17,27,.88);border:1px solid rgba(220,185,120,.55);color:#ffecc8;font-size:11px;font-weight:550;letter-spacing:.02em;box-shadow:0 4px 16px rgba(0,0,0,.65),0 0 10px rgba(220,185,120,.15),inset 0 1px 0 rgba(255,255,255,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .cell-label::after{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%) rotate(45deg);width:7px;height:7px;background:rgba(5,17,27,.88);border-right:1px solid rgba(220,185,120,.55);border-bottom:1px solid rgba(220,185,120,.55)}
 .tour-caption{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:2;max-width:min(680px,92%);margin:0;padding:8px 16px;border-radius:9px;background:rgba(5,17,27,.88);border:1px solid rgba(60,114,142,.65);box-shadow:0 8px 24px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#e6f3fa;font-size:12.5px;line-height:1.45;text-align:center}
-@media (max-width:700px){.drawer{left:6px;right:6px;width:auto;top:auto;height:56dvh;bottom:calc(14.5dvh + 6px)}}
+@media (max-width:700px){.drawer{left:6px;right:6px;width:auto;top:auto;height:56dvh;bottom:10px}}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:#102a3a;border-radius:3px;outline:none;border:1px solid rgba(49,82,99,.6);box-shadow:inset 0 1px 2px rgba(0,0,0,.5);margin:8px 0}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#e4ba78,#b88d4c);border:1.5px solid #fff2d6;box-shadow:0 0 8px rgba(228,186,120,.5);cursor:pointer}
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#e4ba78,#b88d4c);border:1.5px solid #fff2d6;box-shadow:0 0 8px rgba(228,186,120,.5);cursor:pointer}
@@ -123,7 +184,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .drawer-body table.grid tr:nth-child(even) td{background:rgba(12,30,44,.25)}
 .drawer-body tr.best td{color:var(--warm);font-weight:700}.drawer-body .trial{margin:8px 0}.drawer-body details{margin-top:10px;color:var(--muted)}.drawer-body .play>select{width:100%;margin-bottom:6px}
 .drawer-body .pad{display:grid;grid-template-columns:repeat(4,auto);gap:4px;justify-content:start;margin:6px 0}
-.boot{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 45%,#0d253a,#020912 75%);pointer-events:none;backdrop-filter:blur(4px)}
+.boot{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 45%,#0d253a,#020912 75%);pointer-events:none;backdrop-filter:blur(4px)}
 .boot[hidden]{display:none}
 .boot-card{max-width:min(460px,88vw);text-align:center;color:#d7e8f1;font-size:13.5px;line-height:1.45;padding:24px 28px;background:rgba(6,19,30,.88);border:1px solid #2d556c;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08)}
 .boot-orb{position:relative;width:80px;height:80px;margin:0 auto 18px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#f3caa0 0%,#2e748e 48%,#0a2233 78%);box-shadow:0 0 36px rgba(44,111,134,.55),inset 0 0 12px rgba(0,0,0,.6);animation:boot-pulse 3s ease-in-out infinite}

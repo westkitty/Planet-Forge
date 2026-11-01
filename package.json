@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:dock": "node scripts/test-dock.mjs",
     "smoke": "node scripts/smoke.mjs",
     "seed-report": "node scripts/seed-report.mjs"
   },

@@ -16,6 +16,7 @@ import { createObservatoryUI } from './observatoryUI.js';
 import { tourStops, facingRotation, ROUTES, INVESTIGATIONS } from './observatory.js';
 import { pickSurface, cellDir, nearestCell, latLonToDir } from './geo.js';
 import { progress as surveyProgress } from './gameplay/survey.js';
+import { initDockUI } from './dockUI.js';
 const root = document.querySelector('#viewer'), seedInput = document.querySelector('#seed'), layerSelect = document.querySelector('#layer'), seasonSelect = document.querySelector('#season'), tiltSelect = document.querySelector('#tilt'), eraSelect = document.querySelector('#era');
 let planet, mesh, renderedPlanet = null, annotation = null, zonalRain, coastalMask, disposed = false, glacialMs = null;
 const FREQUENCY = 100; // 10f^2+2 = 100,002 cells
@@ -350,6 +351,8 @@ window.__planetForgeView = { info: () => ({ ...presentation.info(), controller: 
   setSubsolarLongitude: lon => { presentation.clock.subsolarLon = lon; syncClock(); return presentation.info(); } };
 // Test/diagnostic handle for the sky's quality tiers (PF-01); the world model is not reachable from here.
 window.__planetForgeSky = { info: presentation.sky.info, setQuality: q => { presentation.sky.setQuality(q); return presentation.sky.info(); } };
+const dockUI = initDockUI();
+window.__planetForgeDock = dockUI;
 document.querySelector('#generate').addEventListener('click', generate); seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); }); layerSelect.addEventListener('change', makeGlobe); seasonSelect.addEventListener('change', makeGlobe); tiltSelect.addEventListener('change', generate); eraSelect.addEventListener('change', makeGlobe);
 document.querySelector('#random').addEventListener('click', () => { seedInput.value = 'WORLD-' + Math.random().toString(36).slice(2, 9).toUpperCase(); generate(); });
 document.querySelector('#export').addEventListener('click', () => {
