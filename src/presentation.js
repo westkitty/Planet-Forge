@@ -252,17 +252,31 @@ void main() {
   // ---- Settlement markers (PF-08) ----
   let markers = null, selectedSettlement = -1;
   const markerMaterial = new THREE.ShaderMaterial({
-    uniforms: { uPixelRatio: { value: 1 }, uSelected: { value: -1 } },
-    vertexShader: `attribute float aIndex; attribute float aState; uniform float uPixelRatio; uniform float uSelected; varying float vSel; varying float vRuin;
-void main() { vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0; vRuin = aState > 0.5 && aState < 1.5 ? 1.0 : 0.0; gl_PointSize = aState > 1.5 ? 0.0 : (vSel > 0.5 ? 19.0 : 12.0) * uPixelRatio; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `varying float vSel; varying float vRuin;
+    uniforms: { uPixelRatio: { value: 1 }, uSelected: { value: -1 }, uTime: shared.uTime },
+    vertexShader: `attribute float aIndex; attribute float aState; uniform float uPixelRatio; uniform float uSelected; uniform float uTime; varying float vSel; varying float vRuin;
+void main() {
+  vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0;
+  vRuin = aState > 0.5 && aState < 1.5 ? 1.0 : 0.0;
+  float pulse = vSel > 0.5 ? (1.0 + 0.12 * sin(uTime * 4.0)) : 1.0;
+  gl_PointSize = aState > 1.5 ? 0.0 : (vSel > 0.5 ? 20.0 : 12.0) * uPixelRatio * pulse;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`,
+    fragmentShader: `uniform float uTime; varying float vSel; varying float vRuin;
 void main() {
   float r = length(gl_PointCoord * 2.0 - 1.0);
-  float ring = smoothstep(0.62, 0.72, r) * (1.0 - smoothstep(0.86, 1.0, r));
-  float dot_ = 1.0 - smoothstep(0.22, 0.32, r);
-  float a = max(ring, dot_);
+  float ring = smoothstep(0.60, 0.72, r) * (1.0 - smoothstep(0.86, 0.98, r));
+  float dot_ = 1.0 - smoothstep(0.20, 0.32, r);
+  float ping = 0.0;
+  if (vSel > 0.5) {
+    float wave = fract(uTime * 0.85);
+    float waveR = 0.35 + 0.58 * wave;
+    ping = smoothstep(waveR - 0.08, waveR, r) * (1.0 - smoothstep(waveR, waveR + 0.08, r)) * (1.0 - wave) * 0.72;
+  }
+  float a = max(max(ring, dot_), ping);
   if (a < 0.02) discard;
-  vec3 col = mix(mix(vec3(1.0, 0.82, 0.5), vec3(1.0, 0.96, 0.82), vSel), vec3(0.55, 0.55, 0.58), vRuin);
+  vec3 baseCol = vRuin > 0.5 ? vec3(0.66, 0.58, 0.48) : vec3(1.0, 0.82, 0.50);
+  vec3 selCol = vec3(1.0, 0.96, 0.82);
+  vec3 col = mix(baseCol, selCol, vSel);
   gl_FragColor = vec4(col, a * (0.85 + 0.15 * vSel));
 }`,
     transparent: true, depthWrite: false

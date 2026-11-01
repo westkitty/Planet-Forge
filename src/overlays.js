@@ -9,12 +9,12 @@ export function createOverlays(baseMesh, radius) {
   const group = new THREE.Group(); group.name = 'pf-overlays';
   const noPick = o => { o.raycast = () => {}; return o; };
   const ringGeometry = new THREE.RingGeometry(.72, 1, 48);
-  const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide });
-  const hoverMaterial = new THREE.MeshBasicMaterial({ color: 0xbfe6f2, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide });
+  const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffd88f, transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide });
+  const hoverMaterial = new THREE.MeshBasicMaterial({ color: 0x9ee6fc, transparent: true, opacity: .65, depthWrite: false, side: THREE.DoubleSide });
   const reticle = noPick(new THREE.Mesh(ringGeometry, reticleMaterial)), hover = noPick(new THREE.Mesh(ringGeometry, hoverMaterial));
   reticle.renderOrder = hover.renderOrder = 4; reticle.visible = hover.visible = false;
   group.add(reticle, hover);
-  let elevation = null, selected = -1, hovered = -1;
+  let elevation = null, selected = -1, hovered = -1, overlayTime = 0;
 
   function place(obj, cell, size, lift = .004) {
     const P = baseMesh.positions, n = new THREE.Vector3(P[3 * cell], P[3 * cell + 1], P[3 * cell + 2]);
@@ -41,12 +41,19 @@ export function createOverlays(baseMesh, radius) {
     spawned++; return true;
   }
   function tick(dt, motion) {
+    if (motion) overlayTime += dt;
+    if (reticle.visible && motion) {
+      const breath = 1.0 + 0.045 * Math.sin(overlayTime * 3.5);
+      reticle.scale.setScalar(0.022 * breath);
+      reticleMaterial.opacity = 0.90 + 0.08 * Math.sin(overlayTime * 3.5);
+    }
     for (const e of pool) {
       if (!e.mesh.visible) continue;
       e.age += dt; const t = e.age / LIFE;
       if (t >= 1) { e.mesh.visible = false; continue; }
-      e.mesh.material.opacity = motion ? (1 - t) * .9 : (t < .8 ? .9 : (1 - t) * 4.5);
-      if (motion) e.mesh.scale.setScalar(.02 + .06 * t);
+      const ease = 1 - Math.pow(1 - t, 2.2);
+      e.mesh.material.opacity = motion ? (1 - t) * .92 : (t < .8 ? .9 : (1 - t) * 4.5);
+      if (motion) e.mesh.scale.setScalar(.018 + .072 * ease);
     }
   }
   const activeEffects = () => pool.filter(e => e.mesh.visible).length;
@@ -56,7 +63,7 @@ export function createOverlays(baseMesh, radius) {
   function showTransect(rows) {
     clearTransect();
     const P = baseMesh.positions, pts = [];
-    for (const r of rows) { const k = radius(elevation[r.cell]) + .006; pts.push(new THREE.Vector3(P[3 * r.cell] * k, P[3 * r.cell + 1] * k, P[3 * r.cell + 2] * k)); }
+    for (const r of rows) { const k = radius(elevation[r.cell]) + .007; pts.push(new THREE.Vector3(P[3 * r.cell] * k, P[3 * r.cell + 1] * k, P[3 * r.cell + 2] * k)); }
     path = noPick(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffe2a8, transparent: true, opacity: .95, depthWrite: false })));
     path.renderOrder = 4; group.add(path);
   }

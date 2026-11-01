@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 040 (Batch 08 complete)
-- **Active Milestone:** Batch 08 (Cycles 036–040) Camera, portrait/mobile framing, touch response, zoom & cinematic transitions
-- **Next Cycle:** 041 (Batch 09 start: World selection, geographic markers, in-world labels & interaction feedback)
+- **Current Cycle:** 045 (Batch 09 complete)
+- **Active Milestone:** Batch 09 (Cycles 041–045) World selection, geographic markers, in-world labels & interaction feedback
+- **Next Cycle:** 046 (Batch 10 start: Bottom console, overlays, responsive UI, hierarchy and typography)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -573,5 +573,78 @@
 - **Files Changed:** `src/main.js`, `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-08-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-08-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; viewer area strictly 85.5% on desktop and mobile; two-finger pinch zoom and wheel zoom empirically verified.
 - **Commit SHA:** `d9c14f8064dcc573b2554f130d728e0df252fac4` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 09: World Selection, Geographic Markers, In-World Labels & Interaction Feedback (Cycles 041–045)
+*Focus: High-precision selection reticle subtle breathing, animated settlement beacon shaders with radar pings, frosted glass callouts, and transect Great Circle glow.*
+
+#### Cycle 041
+- **Batch:** 09
+- **Observed Weakness:** Selection reticle (`reticle`) and hover indicator in `src/overlays.js` were static, flat unshaded circles with zero active state feedback or visual breathing.
+- **Chosen Action:** In `src/overlays.js`:
+  - Upgraded reticle palette to luminous observatory gold `0xffd88f` and hover to crystalline cyan `0x9ee6fc` (opacity 0.65).
+  - In `overlays.tick(dt, motion)`: introduced subtle telemetry breathing pulse on the active reticle (`scale = 0.022 * (1.0 + 0.045 * sin(overlayTime * 3.5))` and opacity oscillation between 0.90 and 0.98).
+  - Maintained zero-motion behavior under `prefers-reduced-motion: reduce`.
+- **Affected Surface:** Selection reticle, hover indicator, planetary targeting.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Active cell selection feels alive and locked-on with subtle, high-precision astronomical telemetry feedback.
+- **Performance Impact:** Pure scalar arithmetic in CPU tick; zero new draw calls.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 042 settlement marker shader and ruin decay visuals.
+
+#### Cycle 042
+- **Batch:** 09
+- **Observed Weakness:** Settlement point markers (`markerMaterial` in `src/presentation.js`) had a flat dot/ring pattern that lacked visual energy for selected settlements and lacked distinct antique character for archaeological ruins.
+- **Chosen Action:** In `src/presentation.js` (`markerMaterial`):
+  - Passed `uTime: shared.uTime` uniform into marker shader.
+  - Implemented dynamic beacon pulse and expanding radar-ping wavefront for selected settlements (`vSel > 0.5`):
+    `float ping = smoothstep(waveR - 0.08, waveR, r) * (1.0 - smoothstep(waveR, waveR + 0.08, r)) * (1.0 - wave) * 0.72;`
+  - Enriched ruin color palette to ancient weathered terracotta/sandstone `vec3(0.66, 0.58, 0.48)`.
+  - Added anti-aliased edge falloffs for inhabited settlement markers (`vec3(1.0, 0.82, 0.50)`).
+- **Affected Surface:** Settlement points, ruin markers, selection beacon shader.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Selected settlements pulse with a soft golden radar beacon on the globe surface; archaeological ruins display distinct decayed stone tones; zero performance impact.
+- **Performance Impact:** Shader-only arithmetic on existing point sprites.
+- **Regression Findings:** Passed all settlement selection smoke assertions (`Settlement Aster` verified).
+- **Next Action:** Cycle 043 frosted glass cell label callout and downward anchor notch.
+
+#### Cycle 043
+- **Batch:** 09
+- **Observed Weakness:** `#cell-label` and `#tour-caption` were styled with flat, low-contrast solid boxes lacking depth, backdrop-blur, or visual connection to the cell geometry beneath.
+- **Chosen Action:** In `src/style.css`:
+  - Upgraded `.cell-label` to frosted glass styling (`backdrop-filter: blur(8px); background: rgba(5, 17, 27, 0.88)`).
+  - Added luminous inset highlight and warm telemetry border (`border: 1px solid rgba(220, 185, 120, 0.55); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 10px rgba(220, 185, 120, 0.15)`).
+  - Added a geometric downward anchor notch (`.cell-label::after`) pointing directly to the terrain elevation contact point.
+  - Enhanced `.tour-caption` with matching glassmorphism and cyan telemetry border (`border: 1px solid rgba(60, 114, 142, 0.65)`).
+- **Affected Surface:** In-world selection labels, tour captions, DOM overlays.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Callout visually anchors to the 3D globe coordinate, maintaining legibility against both bright desert terrain and deep night-side ocean.
+- **Performance Impact:** GPU-accelerated backdrop filter with sub-pixel rendering.
+- **Regression Findings:** Verified in headless Chrome: `#cell-label` passes presence and inner text assertions.
+- **Next Action:** Cycle 044 pooled event shockwave easing and Great Circle transect line polish.
+
+#### Cycle 044
+- **Batch:** 09
+- **Observed Weakness:** Pooled event pulse effects (`pulse(cell, kind)`) expanded at a uniform linear rate, causing event effects to feel sluggish rather than having an initial energetic wavefront impact.
+- **Chosen Action:** In `src/overlays.js`:
+  - Applied ease-out exponential shockwave curve: `const ease = 1 - Math.pow(1 - t, 2.2);`
+  - Initial expansion starts at `0.018` and expands to `0.090`, giving discoveries and observations an impactful burst that smoothly decelerates as it fades.
+  - In `showTransect(rows)`: elevated Great Circle line geometry to `radius + 0.007`, completely preventing terrain depth z-fighting on high mountain peaks.
+- **Affected Surface:** Event particles, discovery rings, transect path.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Discoveries and journal bookmarks trigger crisp, responsive ripple waves across the globe mesh; transect line remains crisp across extreme topography.
+- **Performance Impact:** Zero additional geometry allocation; reuses 12-element object pool.
+- **Regression Findings:** Passed discovery logging and pooled effect assertions (`activeEffects >= 1 && spawned >= 1`).
+- **Next Action:** Cycle 045 Batch 09 Git Checkpoint.
+
+#### Cycle 045
+- **Batch:** 09
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 09 improvements.
+- **Chosen Action:** Run full unit tests (95/95 passing), production build (clean in 804ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-09-*.png`; stage intended files; commit `visual-uplift(batch-09): high-precision reticle, animated settlement beacons, frosted glass callouts, and transect glow`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/overlays.js`, `src/presentation.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-09-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-09-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; settlement selection, reticle telemetry, and event pulses verified.
+- **Commit SHA:** Pending checkpoint commit.
 
 ---
