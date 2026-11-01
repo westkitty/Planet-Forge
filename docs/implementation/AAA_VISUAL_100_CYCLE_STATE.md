@@ -572,6 +572,6 @@
 - **Affected Surface:** Repository feature branch state.
 - **Files Changed:** `src/main.js`, `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-08-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-08-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; viewer area strictly 85.5% on desktop and mobile; two-finger pinch zoom and wheel zoom empirically verified.
-- **Commit SHA:** Pending checkpoint commit.
+- **Commit SHA:** `d9c14f8064dcc573b2554f130d728e0df252fac4` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
