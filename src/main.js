@@ -41,9 +41,104 @@ const BIOME_COLORS = { Ocean: '#0e3852', Ice: '#f0f8fb', Tundra: '#879b93', 'Bor
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
 const SHORE_SEA = new THREE.Color('#3d8299'), SHORE_LAND = new THREE.Color('#d4c49d');
-const BOUNDARY_COLORS = [null, new THREE.Color('#ff5a3c'), new THREE.Color('#3cc8ff'), new THREE.Color('#ffd23c')];
+const BOUNDARY_COLORS = [null, new THREE.Color('#ff4d36'), new THREE.Color('#2ad4ff'), new THREE.Color('#ffc82a')];
 // Glacial maximum (glacial-0.8): ice sheets shaded by thickness, exposed shelves as land, land bridges highlighted.
 const ICE_THIN = new THREE.Color('#cfe3ee'), ICE_THICK = new THREE.Color('#f7fbff'), SHELF = new THREE.Color('#b9a77a'), BRIDGE = new THREE.Color('#ff9f3c'), RETREAT = new THREE.Color('#7fb6c9');
+
+// Pre-allocated scientific layer color ramps
+const RAMP_TEMP = [
+  { t: -50, c: new THREE.Color('#381864') },
+  { t: -30, c: new THREE.Color('#1e3c88') },
+  { t: -12, c: new THREE.Color('#1c6fae') },
+  { t: 0,   c: new THREE.Color('#38b8d0') },
+  { t: 10,  c: new THREE.Color('#3ea888') },
+  { t: 20,  c: new THREE.Color('#82b842') },
+  { t: 28,  c: new THREE.Color('#d89e24') },
+  { t: 36,  c: new THREE.Color('#db5620') },
+  { t: 45,  c: new THREE.Color('#b81822') }
+];
+function tempColor(t, c) {
+  if (t <= -50) return c.copy(RAMP_TEMP[0].c);
+  if (t >= 45) return c.copy(RAMP_TEMP[8].c);
+  for (let k = 0; k < 8; k++) {
+    const a = RAMP_TEMP[k], b = RAMP_TEMP[k + 1];
+    if (t <= b.t) return c.copy(a.c).lerp(b.c, (t - a.t) / (b.t - a.t));
+  }
+  return c.copy(RAMP_TEMP[8].c);
+}
+
+const RAMP_OCEAN = [
+  { h: -11000, c: new THREE.Color('#030814') },
+  { h: -6000,  c: new THREE.Color('#0a203a') },
+  { h: -3000,  c: new THREE.Color('#143c62') },
+  { h: -500,   c: new THREE.Color('#226694') },
+  { h: 0,      c: new THREE.Color('#46a8ca') }
+];
+const RAMP_LAND = [
+  { h: 0,     c: new THREE.Color('#2e6c52') },
+  { h: 350,   c: new THREE.Color('#58a876') },
+  { h: 900,   c: new THREE.Color('#9ec482') },
+  { h: 1800,  c: new THREE.Color('#d8b868') },
+  { h: 3000,  c: new THREE.Color('#c67848') },
+  { h: 4800,  c: new THREE.Color('#8a6252') },
+  { h: 6500,  c: new THREE.Color('#f0f2f5') }
+];
+function elevationColor(el, c) {
+  if (el < 0) {
+    if (el <= -11000) return c.copy(RAMP_OCEAN[0].c);
+    if (el >= 0) return c.copy(RAMP_OCEAN[4].c);
+    for (let k = 0; k < 4; k++) {
+      const a = RAMP_OCEAN[k], b = RAMP_OCEAN[k + 1];
+      if (el <= b.h) return c.copy(a.c).lerp(b.c, (el - a.h) / (b.h - a.h));
+    }
+    return c.copy(RAMP_OCEAN[4].c);
+  }
+  if (el >= 6500) return c.copy(RAMP_LAND[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_LAND[k], b = RAMP_LAND[k + 1];
+    if (el <= b.h) return c.copy(a.c).lerp(b.c, (el - a.h) / (b.h - a.h));
+  }
+  return c.copy(RAMP_LAND[6].c);
+}
+
+const RAMP_RAIN = [
+  { r: 0,    c: new THREE.Color('#f4e6c0') },
+  { r: 150,  c: new THREE.Color('#d4bf7c') },
+  { r: 400,  c: new THREE.Color('#88c2ad') },
+  { r: 900,  c: new THREE.Color('#389898') },
+  { r: 1800, c: new THREE.Color('#18688e') },
+  { r: 3000, c: new THREE.Color('#163884') },
+  { r: 5000, c: new THREE.Color('#101858') }
+];
+function rainColor(r, c) {
+  if (r <= 0) return c.copy(RAMP_RAIN[0].c);
+  if (r >= 5000) return c.copy(RAMP_RAIN[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_RAIN[k], b = RAMP_RAIN[k + 1];
+    if (r <= b.r) return c.copy(a.c).lerp(b.c, (r - a.r) / (b.r - a.r));
+  }
+  return c.copy(RAMP_RAIN[6].c);
+}
+
+const RAMP_AGE = [
+  { a: 0,   c: new THREE.Color('#e6241e') },
+  { a: 25,  c: new THREE.Color('#f68428') },
+  { a: 55,  c: new THREE.Color('#fabc36') },
+  { a: 85,  c: new THREE.Color('#68b852') },
+  { a: 120, c: new THREE.Color('#2ea2a4') },
+  { a: 160, c: new THREE.Color('#2258aa') },
+  { a: 200, c: new THREE.Color('#3e1878') }
+];
+function seafloorAgeColor(age, c) {
+  const clamped = Math.max(0, Math.min(200, age));
+  if (clamped <= 0) return c.copy(RAMP_AGE[0].c);
+  if (clamped >= 200) return c.copy(RAMP_AGE[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_AGE[k], b = RAMP_AGE[k + 1];
+    if (clamped <= b.a) return c.copy(a.c).lerp(b.c, (clamped - a.a) / (b.a - a.a));
+  }
+  return c.copy(RAMP_AGE[6].c);
+}
 function glacialColor(i, layer, c, g) {
   const s = g.cell[i];
   if (s === GLACIAL_CELL.ice) return c.copy(ICE_THIN).lerp(ICE_THICK, Math.min(1, g.thickness[i] / 3500));
@@ -63,27 +158,27 @@ function color(i, layer, c) {
   if (fogMask && !fogMask[i]) return c.setRGB(.03, .045, .06);
   const el = planet.elevation[i];
   if (glacialView() && glacialColor(i, layer, c, planet.glaciation)) return c;
-  if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .55, planet.continental[i] ? .55 : .36); }
+  if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .62, planet.continental[i] ? .58 : .34); }
   if (layer === 'boundaries') { const b = planet.boundary[i]; if (b) return c.copy(BOUNDARY_COLORS[b]); return planet.continental[i] ? c.setRGB(.42, .40, .36) : c.setRGB(.10, .16, .24); }
-  if (layer === 'age') { if (planet.continental[i]) return c.setRGB(.35, .33, .30); return c.setHSL(THREE.MathUtils.clamp(planet.seafloorAge[i] / 200, 0, 1) * .75, .8, .5); }
+  if (layer === 'age') { if (planet.continental[i]) return c.setRGB(.35, .33, .30); return seafloorAgeColor(planet.seafloorAge[i], c); }
   const m = seasonSelect.value === 'jan' ? 0 : seasonSelect.value === 'jul' ? 6 : -1;
-  if (layer === 'temperature') { const t = m < 0 ? planet.temperature[i] : planet.climate.temperatureMonthly[12 * i + m]; return c.setHSL(THREE.MathUtils.clamp((40 - t) / 95, 0, 1) * .68, .83, .49); }
-  if (layer === 'rainfall') { const r = m < 0 ? planet.rainfall[i] : planet.climate.precipitationMonthly[12 * i + m] * 12; return c.setHSL(.60, .8, Math.min(.78, .1 + Math.log10(1 + r) / 5.2)); }
+  if (layer === 'temperature') { const t = m < 0 ? planet.temperature[i] : planet.climate.temperatureMonthly[12 * i + m]; return tempColor(t, c); }
+  if (layer === 'rainfall') { const r = m < 0 ? planet.rainfall[i] : planet.climate.precipitationMonthly[12 * i + m] * 12; return rainColor(r, c); }
   if (layer === 'koppen') return c.copy(koppenColor[planet.koppen[i]]);
   if (layer === 'winds') { // rain shadow index: precipitation relative to the zonal-mean land precipitation at that latitude
     if (el < 0) return c.setRGB(.08, .13, .2);
     const z = zonalRain[Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90)))] || 1, q = Math.log2((planet.rainfall[i] + 20) / (z + 20));
-    return q < 0 ? c.setRGB(.55 + Math.min(.4, -q * .18), .42, .22) : c.setRGB(.2, .45 + Math.min(.4, q * .15), .55 + Math.min(.4, q * .2));
+    return q < 0 ? c.setRGB(.58 + Math.min(.38, -q * .18), .42, .22) : c.setRGB(.18, .46 + Math.min(.4, q * .15), .56 + Math.min(.4, q * .2));
   }
   if (layer === 'rivers' || layer === 'basins') {
     if (el < 0) return c.setRGB(.06, .12, .2);
     const lk = planet.hydro.lake[i];
     if (lk === LAKE.fresh) return c.setRGB(.2, .5, .85); if (lk === LAKE.salt) return c.setRGB(.45, .82, .76); if (lk === LAKE.saltFlat) return c.setRGB(.9, .88, .8);
-    if (layer === 'rivers') { const v = .2 + Math.min(.35, el / 12000); return c.setRGB(v, v * 1.05, v * .9); }
+    if (layer === 'rivers') { const v = .18 + Math.min(.28, el / 14000); return c.setRGB(v * 0.95, v * 1.05, v * 0.92); }
     const b = planet.hydro.basins[planet.hydro.basin[i]], hsh = Math.imul(b.mouth + 7, 2654435761) >>> 0;
-    return b.endorheic ? c.setHSL(.08 + (hsh % 60) / 1000, .45, .3 + (hsh % 7) / 60) : c.setHSL((hsh % 1000) / 1000, .5, .38 + (hsh % 5) / 40);
+    return b.endorheic ? c.setHSL(.08 + (hsh % 60) / 1000, .52, .32 + (hsh % 7) / 60) : c.setHSL((hsh % 1000) / 1000, .54, .36 + (hsh % 5) / 40);
   }
-  if (layer === 'elevation') return el < 0 ? c.setRGB(.03, .05 + Math.max(0, el + 11000) / 44000, .18 + Math.max(0, el + 11000) / 30000) : c.setHSL(.28 - Math.min(.2, el / 40000), .35, Math.min(.88, .22 + el / 9000));
+  if (layer === 'elevation') return elevationColor(el, c);
   if (el < 0) {
     const d = clamp01(-el / 8500);
     c.setRGB(.014 + (1 - d) * .035, .048 + (1 - d) * .072, .120 + (1 - d) * .115);
@@ -160,7 +255,7 @@ function makeGlobe() {
 }
 // Prevailing-wind arrows for the selected season (annual = mean of January and July), drawn on ~2,500 cells.
 function windArrows() {
-  const P = baseMesh.positions, J = planet.climate.wind[0], Y = planet.climate.wind[1], s = seasonSelect.value, pts = [];
+  const P = baseMesh.positions, J = planet.climate.wind[0], Y = planet.climate.wind[1], s = seasonSelect.value, pts = [], col = [];
   for (let i = 0; i < planet.cellCount; i += 40) {
     const wx = s === 'jan' ? J[3 * i] : s === 'jul' ? Y[3 * i] : (J[3 * i] + Y[3 * i]) / 2, wy = s === 'jan' ? J[3 * i + 1] : s === 'jul' ? Y[3 * i + 1] : (J[3 * i + 1] + Y[3 * i + 1]) / 2, wz = s === 'jan' ? J[3 * i + 2] : s === 'jul' ? Y[3 * i + 2] : (J[3 * i + 2] + Y[3 * i + 2]) / 2;
     const k = 0.045, lift = presentation.radius(planet.elevation[i]) + .009;
@@ -170,9 +265,13 @@ function windArrows() {
     // arrow head: two short barbs rotated about the local normal
     const nx = P[3 * i], ny = P[3 * i + 1], nz = P[3 * i + 2], cx = wy * nz - wz * ny, cy = wz * nx - wx * nz, cz = wx * ny - wy * nx;
     pts.push(tx, ty, tz, tx - wx * k * .4 + cx * k * .25, ty - wy * k * .4 + cy * k * .25, tz - wz * k * .4 + cz * k * .25, tx, ty, tz, tx - wx * k * .4 - cx * k * .25, ty - wy * k * .4 - cy * k * .25, tz - wz * k * .4 - cz * k * .25);
+    const speed = Math.hypot(wx, wy, wz);
+    const v = Math.min(1, speed / 18);
+    const cr = 0.65 + 0.35 * v, cg = 0.85 + 0.15 * v, cb = 1.0;
+    for (let p = 0; p < 6; p++) col.push(cr, cg, cb);
   }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf4f7fb, transparent: true, opacity: .8 }));
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .85 }));
 }
 // River network: a segment from every river cell to its receiver; brightness and colour by log discharge.
 function riverLines() {
