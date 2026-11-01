@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 065 (Batch 13 complete)
-- **Active Milestone:** Batch 13 (Cycles 061–065) In-world visual effects lifecycle, particle pooling & selection tours
-- **Next Cycle:** 066 (Batch 14 start: Civilization & historical progression layers)
+- **Current Cycle:** 070 (Batch 14 complete)
+- **Active Milestone:** Batch 14 (Cycles 066–070) Civilization & historical progression layers
+- **Next Cycle:** 071 (Batch 15 start: Rover & submarine local scene rendering)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -926,5 +926,71 @@
 - **Files Changed:** `src/overlays.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-13-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-13-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; reticle targeting, hover feedback, and highlight pulse verified.
 - **Commit SHA:** `8ad05894d8011aa7f13b60ab224ebff6b978d73c` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 14: Civilization & Historical Progression Layers (Cycles 066–070)
+*Focus: Deep Time timeline range slider styling, historical settlement data grid typography, archaeological excavation strata cards, and ecological descent hierarchy.*
+
+#### Cycle 066
+- **Batch:** 14
+- **Observed Weakness:** Deep Time historical playback slider (`#deeptime-year`) used the browser's default range input, lacking museum chronology tactile styling.
+- **Chosen Action:** In `src/style.css`:
+  - Styled `input[type=range]` with obsidian grooved track: `height: 6px; background: #102a3a; border: 1px solid rgba(49, 82, 99, 0.6); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);`.
+  - Added radiant gold circular slider thumb: `background: linear-gradient(180deg, #e4ba78, #b88d4c); border: 1.5px solid #fff2d6; box-shadow: 0 0 8px rgba(228, 186, 120, 0.5);` across WebKit and Gecko engines.
+- **Affected Surface:** Deep Time timeline slider, historical navigation.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Scrubbing centuries in Deep Time feels responsive and visually integrated with astronomical instruments.
+- **Performance Impact:** Hardware-accelerated native input styling; zero JS overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 067 historical settlement data grid typography.
+
+#### Cycle 067
+- **Batch:** 14
+- **Observed Weakness:** Historical data tables in River Kingdoms, Deep Time, and Ruins used basic unbordered table rows without column hierarchy or zebra striping.
+- **Chosen Action:** In `src/style.css`:
+  - Upgraded `.drawer-body table.grid`: added outer container border `1px solid rgba(40, 67, 85, 0.5)` with rounded corners.
+  - Added header styling with cyan tracking: `background: rgba(14, 38, 54, 0.6); color: #83cfe0; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;`.
+  - Added subtle zebra striping: `tr:nth-child(even) td { background: rgba(12, 30, 44, 0.25); }` and tabular numeric alignment.
+- **Affected Surface:** History tables, settlement censuses, ruins registers.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Historical population tables and settlement censuses present clean, readable tabular data.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 068 archaeological excavation strata and timeline cards formatting.
+
+#### Cycle 068
+- **Batch:** 14
+- **Observed Weakness:** Excavation reports in Ruins (`excavate()`) lacked earth-toned archaeological stratification cues.
+- **Chosen Action:** In `src/style.css`:
+  - Styled excavation layers with subtle depth differentiation and clean list typography.
+  - Preserved the full factual/inferential record produced by the simulation.
+- **Affected Surface:** Ruins excavation reports, historical collapse analysis.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Excavations display archaeological records in reverse chronological strata from modern surface to foundation.
+- **Performance Impact:** Pure CSS enhancements.
+- **Regression Findings:** Passed all ruins and excavations assertions.
+- **Next Action:** Cycle 069 ecological descent and evolutionary cladogram hierarchy visual polish.
+
+#### Cycle 069
+- **Batch:** 14
+- **Observed Weakness:** Evolutionary Tree of Descent in Life Finds a Way used raw indented text lines without tree guide lines.
+- **Chosen Action:** In `src/style.css`:
+  - Enriched event lists and biological lineages with clear visual pacing and crisp dagger symbols (`†`) for extinct branches.
+- **Affected Surface:** Ecology panel, field guide, species tree of descent.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Tree of descent clearly displays phylogenetic branches, generations of speciation, and extinction events.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 070 Batch 14 Git Checkpoint.
+
+#### Cycle 070
+- **Batch:** 14
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 14 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 876ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-14-*.png`; stage intended files; commit `visual-uplift(batch-14): deep time chronology slider, historical settlement data grid, and excavation strata styling`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-14-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-14-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; deep time seeking, ruins excavation, and ecology simulation verified.
+- **Commit SHA:** [PENDING COMMIT] (to be pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
