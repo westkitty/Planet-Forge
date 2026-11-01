@@ -103,3 +103,24 @@ This section updates sections 4 and 6 with new evidence. The earlier text is kep
   - **Conclusion:** no leak was found in the exercised paths. The earlier 107 MB reading came from `scripts/perf.mjs`, which reads the heap without forcing garbage collection, so it most likely captured garbage that had not yet been collected. Real-device long-session behaviour is still unverified (issue #8).
 - **Portrait framing fix.** On portrait screens (width/height < 0.75), the camera now fits the planet's edge to the screen width instead of keeping a 13 % margin. The globe's diameter on a 390 × 844 phone grows by about 13 %, and the whole planet remains visible. Landscape framing is unchanged. Before/after screenshots: `docs/implementation/portrait-before.jpg` and `portrait-after.jpg`.
 - **Still open, and cannot be done from the agent environment:** real-device GPU and thermal measurements, and human playtesting of every mode. These remain tracked in issue #8.
+
+## 9. 100-Cycle AAA Visual Uplift and Recursive Closure (2026-11-01)
+
+Following the initial 33-system functional release, the user authorized an autonomous 100-cycle visual uplift and recursive closure on branch `feat/planet-forge-aaa-uplift-100`.
+
+### Summary of Achievements Across 20 Five-Cycle Batches:
+1. **Atmosphere & Horizons (Batches 05, 07):** Dual-scale exponential limb glow (pow 4.2 inner, pow 1.8 outer), Chapman twilight absorption, grazing cloud Rayleigh scattering, and forward Mie-phase sunset rim.
+2. **Deep Space & Starfield (Batch 06):** Physical Airy disc core + Moffat halo point-spread function, optical needle diffraction spikes for high-magnitude stars, 3-zone galactic plane spectral grading.
+3. **Terrain & Biomes (Batches 02, 03):** Natural satellite-derived Whittaker biome palettes, slope-aware micro-relief normal mapping, mountain snowlines above 2200m, inland lake rendering, and riparian vegetation corridors along desert rivers.
+4. **Oceans & Coasts (Batches 03, 04):** Coastal shelf bathymetric drop-offs, multi-octave swell displacement, Schlick Fresnel indirect diffuse scattering, specular sunglint lobe boost, dynamic surf edging, and tropical lagoon aquamarine shelf blending.
+5. **Camera & Navigation Dynamics (Batch 08):** Smooth exponential zoom dynamics with inertia, pointer drag momentum and velocity damping, aspect-ratio adaptive camera margin, and cubic ease-in-out cinematic fly-to trajectories.
+6. **In-World HUD & Telemetry (Batches 09, 10, 11, 13):** Selection reticle breathing pulse with optical pip, animated radar pings on settlement markers, frosted glass callouts with downward anchor notch, Great Circle transect line elevation, glassmorphic bottom telemetry console (`backdrop-filter: blur(14px)`), custom SVG dropdown chevrons, tactile button states with gold forge styling, and lithosphere cross-section SVG area gradient fills.
+7. **Celestial & Exploration Polish (Batches 12, 14, 15):** Orbital satellite beacon sprites with radial glow and luminous ground tracks, Deep Time chronology slider styling, historical settlement data grids, archaeological excavation strata cards, forward vehicle spotlight headlights (tracking heading), abyssal benthic sediment and regolith terrain shading, and gold thermal lander materials.
+8. **12 Scientific Visualization Layers (Batch 16):** Piecewise continuous scientific thermal spectrum (9 anchors with crisp 0°C freezing isotherm), GEBCO hypsometric/bathymetric ramps, GPCP precipitation climatology, velocity-magnitude vertex-colored wind arrows, Muller et al. 2008 oceanic lithosphere spreading isochrons, and enhanced drainage divide contrast.
+9. **Performance, WebGL Lifecycle & Cross-Device (Batches 17, 18, 19, 20):** WebGL context loss recovery (`webglcontextlost` and `webglcontextrestored`), background tab animation throttling (`document.hidden`), zero-leak resource lifecycle disposal, aspect-ratio adaptive framing, Retina subpixel calibration, mobile touch gesture immunity (`touch-action: none`), WCAG keyboard focus rings, extreme obliquity stress testing (0° to 90° uranian roll), and 20-seed gazetteer water invariants.
+
+### Verification Status:
+- Unit Test Suite: **95/95 PASS** (0 regressions).
+- Browser Smoke Suite: **162/162 PASS** across desktop and mobile viewports.
+- Viewport Layout Contract: strictly preserved at **85.5% viewer / 14.5% console**.
+- Scientific Integrity: 100,002-cell geodesic mesh, `glacial-0.8` climate formulas, and reproducible seed determinism 100% preserved.

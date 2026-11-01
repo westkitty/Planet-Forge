@@ -68,13 +68,20 @@ void main() { vec4 world = modelMatrix * vec4(position, 1.0); vWorldPosition = w
     fragmentShader: `uniform vec3 uSun; uniform float uNatural; varying vec3 vWorldNormal; varying vec3 vWorldPosition;
 void main() {
   vec3 N = normalize(vWorldNormal); vec3 V = normalize(cameraPosition - vWorldPosition);
-  float rim = pow(1.0 - abs(dot(N, V)), 3.2);
+  float grazing = 1.0 - abs(dot(N, V));
+  float innerGlow = pow(grazing, 4.2);
+  float outerGlow = pow(grazing, 1.8);
+  float rim = mix(innerGlow, outerGlow, 0.32);
   float s = dot(N, uSun);
-  float day = smoothstep(-0.35, 0.62, s);
-  vec3 col = mix(vec3(0.045, 0.13, 0.31), vec3(0.20, 0.49, 0.81), day);
-  float twilight = exp(-pow(s / 0.2, 2.0)) * uNatural;            // dawn/dusk band along the terminator
-  col = mix(col, vec3(1.0, 0.52, 0.24), twilight * 0.55);
-  gl_FragColor = vec4(col, rim * (0.18 + 0.48 * day + 0.25 * twilight));
+  float day = smoothstep(-0.25, 0.55, s);
+  vec3 dayColor = mix(vec3(0.09, 0.35, 0.86), vec3(0.36, 0.74, 1.0), pow(grazing, 1.25));
+  vec3 nightColor = vec3(0.020, 0.065, 0.18);
+  vec3 col = mix(nightColor, dayColor, day);
+  float forward = pow(clamp(dot(V, uSun), 0.0, 1.0), 3.8) * day;
+  col += vec3(0.34, 0.66, 1.0) * (forward * 0.32 * rim);
+  float twilight = exp(-pow(s / 0.16, 2.0)) * uNatural;
+  col = mix(col, vec3(1.0, 0.42, 0.12), twilight * 0.72 * pow(grazing, 0.75));
+  gl_FragColor = vec4(col, rim * (0.16 + 0.54 * day + 0.32 * twilight));
 }`,
     side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   });
@@ -106,30 +113,74 @@ void main() {
     material.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, shared);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute float aOcean;\nattribute float aLights;\nvarying float vOcean;\nvarying float vLights;\nvarying vec3 vLocalDir;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcean = aOcean; vLights = aLights; vLocalDir = normalize(position);');
+        .replace('#include <common>', '#include <common>\nattribute float aOcean;\nattribute float aLights;\nvarying float vOcean;\nvarying float vLights;\nvarying vec3 vLocalDir;\nvarying vec3 vNormalDir;\nvarying float vElev;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcean = aOcean; vLights = aLights; vLocalDir = normalize(position); vNormalDir = normalize(normal); vElev = length(position) - 1.0;');
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
 uniform vec3 uSunLocal; uniform float uNatural, uOceanFx, uSwell, uTime, uCloudShadow, uLightsOn;
 varying float vOcean; varying float vLights; varying vec3 vLocalDir;
+varying vec3 vNormalDir; varying float vElev;
 ${cloudGlsl}
 float swellNoise(vec3 p) { return sin(p.x * 1.7 + p.y * 0.4) * sin(p.z * 1.9 - p.y * 0.6) + 0.5 * sin(p.x * 3.1 - p.z * 2.3 + p.y); }`)
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        .replace('#include <color_fragment>', `#include <color_fragment>
 float ocean = step(0.001, vOcean) * uOceanFx;
-roughnessFactor = mix(roughnessFactor, 0.2 + 0.1 * (1.0 - vOcean), ocean);`)
+float slope = clamp(1.0 - dot(normalize(vNormalDir), normalize(vLocalDir)), 0.0, 1.0);
+if (ocean == 0.0 && uNatural > 0.5) {
+  float steepness = clamp(slope * 5.5, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 0.69, 0.66), steepness * 0.35);
+} else if (ocean > 0.0 && uNatural > 0.5) {
+  float shallowRim = clamp(1.0 - vOcean * 3.8, 0.0, 1.0);
+  float tropical = clamp(1.0 - abs(vLocalDir.y) * 2.2, 0.0, 1.0);
+  vec3 lagoonColor = mix(vec3(0.12, 0.44, 0.54), vec3(0.06, 0.62, 0.66), tropical);
+  diffuseColor.rgb = mix(diffuseColor.rgb, lagoonColor, shallowRim * 0.42);
+  float abyssalTrench = clamp(-vElev * 15.0 - 0.2, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.72, abyssalTrench * 0.35);
+  float surf = smoothstep(0.07, 0.005, vOcean);
+  if (surf > 0.0) {
+    float wavePulse = 0.65 + 0.35 * sin(uTime * 1.6 + vLocalDir.x * 90.0 + vLocalDir.z * 70.0);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.94, 0.97), surf * 0.32 * wavePulse);
+  }
+}`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+if (ocean > 0.0) {
+  roughnessFactor = 0.07 + 0.11 * (1.0 - vOcean);
+} else if (uNatural > 0.5) {
+  roughnessFactor = mix(0.88, 0.98, clamp(slope * 6.0 + vElev * 12.0, 0.0, 1.0));
+}`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 if (ocean * uSwell > 0.0) {
   vec3 q = vLocalDir * 160.0 + vec3(uTime * 0.35, 0.0, uTime * 0.27);
-  normal = normalize(normal + 0.045 * vec3(swellNoise(q), swellNoise(q.zxy + 7.0), 0.0));
+  vec3 q2 = vLocalDir * 380.0 - vec3(uTime * 0.20, 0.0, uTime * 0.16);
+  normal = normalize(normal + 0.038 * vec3(swellNoise(q), swellNoise(q.zxy + 7.0), 0.0) + 0.015 * vec3(swellNoise(q2), swellNoise(q2.yzx + 3.0), 0.0));
+} else if (uNatural > 0.5) {
+  float slopeFactor = clamp(slope * 7.0, 0.0, 1.0);
+  if (slopeFactor > 0.02) {
+    vec3 mq = vLocalDir * 320.0;
+    float microRelief = sin(mq.x * 2.1 + mq.y * 1.5) * sin(mq.z * 1.9 - mq.x * 0.7);
+    normal = normalize(normal + 0.022 * slopeFactor * vec3(microRelief, -microRelief * 0.5, microRelief * 0.3));
+  }
 }`)
         .replace('#include <aomap_fragment>', `if (uCloudShadow > 0.0) {
-  float cloudShade = 1.0 - 0.5 * cloudCover(normalize(vLocalDir + uSunLocal * 0.015));
+  float sunHeight = clamp(dot(normalize(vLocalDir), normalize(uSunLocal)), 0.08, 1.0);
+  float shadowDist = min(0.012 / sunHeight, 0.030);
+  float cloudShade = 1.0 - 0.48 * cloudCover(normalize(vLocalDir + uSunLocal * shadowDist));
   reflectedLight.directDiffuse *= cloudShade; reflectedLight.directSpecular *= cloudShade;
+}
+if (ocean > 0.0 && uNatural > 0.5) {
+  float fresnel = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 4.0);
+  reflectedLight.directSpecular *= 1.35;
+  reflectedLight.indirectDiffuse += vec3(0.18, 0.42, 0.72) * fresnel * 0.40;
+}
+if (uNatural > 0.5) {
+  float sunDot = dot(normalize(vLocalDir), normalize(uSunLocal));
+  float twilightGlow = smoothstep(-0.14, 0.02, sunDot) * smoothstep(0.12, -0.02, sunDot);
+  reflectedLight.indirectDiffuse += vec3(0.82, 0.38, 0.14) * (twilightGlow * 0.12);
 }
 #include <aomap_fragment>`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 float nightSide = smoothstep(0.06, -0.16, dot(vLocalDir, uSunLocal));
-totalEmissiveRadiance += vec3(1.0, 0.68, 0.32) * vLights * vLights * nightSide * uNatural * uLightsOn * 1.1;`);
+vec3 nightGlow = mix(vec3(0.003, 0.006, 0.012), vec3(0.005, 0.010, 0.018), ocean) * nightSide * uNatural;
+totalEmissiveRadiance += nightGlow + vec3(1.0, 0.68, 0.32) * vLights * vLights * nightSide * uNatural * uLightsOn * 1.1;`);
     };
     return material;
   }
@@ -138,8 +189,9 @@ totalEmissiveRadiance += vec3(1.0, 0.68, 0.32) * vLights * vLights * nightSide *
   let clouds = null, cloudTexture = null, cloudKey = '', cloudsWanted = true, cloudsAllowed = true, currentPlanet = null, currentGlobe = null, cloudMonth = -1;
   const cloudMaterial = new THREE.ShaderMaterial({
     uniforms: { uSunLocal: shared.uSunLocal, uCloudTex: shared.uCloudTex, uCloudTime: shared.uCloudTime, uDetail: { value: 1 }, uNatural: shared.uNatural },
-    vertexShader: `varying vec3 vLocalDir; void main() { vLocalDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform vec3 uSunLocal; uniform float uDetail; varying vec3 vLocalDir;
+    vertexShader: `varying vec3 vLocalDir; varying vec3 vViewNormal; varying vec3 vViewPos;
+void main() { vLocalDir = normalize(position); vec4 mv = modelViewMatrix * vec4(position, 1.0); vViewPos = mv.xyz; vViewNormal = normalize(mat3(modelViewMatrix) * position); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uSunLocal; uniform float uDetail; uniform float uNatural; varying vec3 vLocalDir; varying vec3 vViewNormal; varying vec3 vViewPos;
 ${cloudGlsl}
 float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float vn(vec3 x) { vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -150,8 +202,18 @@ void main() {
   float c = cloudCover(d);
   if (uDetail > 0.5) c *= 0.72 + 0.56 * (0.6 * vn(d * 22.0 + uCloudTime * 0.004) + 0.4 * vn(d * 57.0));
   c = smoothstep(0.08, 0.85, c);
-  float light = smoothstep(-0.25, 0.7, dot(d, uSunLocal));
+  float sunDot = dot(d, uSunLocal);
+  float light = smoothstep(-0.25, 0.7, sunDot);
   vec3 tint = mix(vec3(0.15, 0.24, 0.36), vec3(0.93, 0.96, 0.99), light);
+  float cloudTwilight = smoothstep(-0.16, 0.06, sunDot) * smoothstep(0.20, -0.04, sunDot) * uNatural;
+  tint = mix(tint, vec3(0.98, 0.56, 0.32), cloudTwilight * 0.62);
+  float density = smoothstep(0.25, 0.85, c);
+  tint *= mix(vec3(0.85, 0.88, 0.92), vec3(1.0), 1.0 - density * 0.28 * (1.0 - light * 0.4));
+  vec3 V = normalize(-vViewPos);
+  vec3 N = normalize(vViewNormal);
+  float viewDot = clamp(dot(N, V), 0.0, 1.0);
+  float limbHaze = pow(1.0 - viewDot, 3.2) * light * uNatural;
+  tint = mix(tint, vec3(0.32, 0.62, 0.94), limbHaze * 0.36);
   gl_FragColor = vec4(tint, c * (0.12 + 0.68 * light));
 }`,
     transparent: true, depthWrite: false
@@ -190,17 +252,31 @@ void main() {
   // ---- Settlement markers (PF-08) ----
   let markers = null, selectedSettlement = -1;
   const markerMaterial = new THREE.ShaderMaterial({
-    uniforms: { uPixelRatio: { value: 1 }, uSelected: { value: -1 } },
-    vertexShader: `attribute float aIndex; attribute float aState; uniform float uPixelRatio; uniform float uSelected; varying float vSel; varying float vRuin;
-void main() { vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0; vRuin = aState > 0.5 && aState < 1.5 ? 1.0 : 0.0; gl_PointSize = aState > 1.5 ? 0.0 : (vSel > 0.5 ? 19.0 : 12.0) * uPixelRatio; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `varying float vSel; varying float vRuin;
+    uniforms: { uPixelRatio: { value: 1 }, uSelected: { value: -1 }, uTime: shared.uTime },
+    vertexShader: `attribute float aIndex; attribute float aState; uniform float uPixelRatio; uniform float uSelected; uniform float uTime; varying float vSel; varying float vRuin;
+void main() {
+  vSel = abs(aIndex - uSelected) < 0.5 ? 1.0 : 0.0;
+  vRuin = aState > 0.5 && aState < 1.5 ? 1.0 : 0.0;
+  float pulse = vSel > 0.5 ? (1.0 + 0.12 * sin(uTime * 4.0)) : 1.0;
+  gl_PointSize = aState > 1.5 ? 0.0 : (vSel > 0.5 ? 20.0 : 12.0) * uPixelRatio * pulse;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`,
+    fragmentShader: `uniform float uTime; varying float vSel; varying float vRuin;
 void main() {
   float r = length(gl_PointCoord * 2.0 - 1.0);
-  float ring = smoothstep(0.62, 0.72, r) * (1.0 - smoothstep(0.86, 1.0, r));
-  float dot_ = 1.0 - smoothstep(0.22, 0.32, r);
-  float a = max(ring, dot_);
+  float ring = smoothstep(0.60, 0.72, r) * (1.0 - smoothstep(0.86, 0.98, r));
+  float dot_ = 1.0 - smoothstep(0.20, 0.32, r);
+  float ping = 0.0;
+  if (vSel > 0.5) {
+    float wave = fract(uTime * 0.85);
+    float waveR = 0.35 + 0.58 * wave;
+    ping = smoothstep(waveR - 0.08, waveR, r) * (1.0 - smoothstep(waveR, waveR + 0.08, r)) * (1.0 - wave) * 0.72;
+  }
+  float a = max(max(ring, dot_), ping);
   if (a < 0.02) discard;
-  vec3 col = mix(mix(vec3(1.0, 0.82, 0.5), vec3(1.0, 0.96, 0.82), vSel), vec3(0.55, 0.55, 0.58), vRuin);
+  vec3 baseCol = vRuin > 0.5 ? vec3(0.66, 0.58, 0.48) : vec3(1.0, 0.82, 0.50);
+  vec3 selCol = vec3(1.0, 0.96, 0.82);
+  vec3 col = mix(baseCol, selCol, vSel);
   gl_FragColor = vec4(col, a * (0.85 + 0.15 * vSel));
 }`,
     transparent: true, depthWrite: false
@@ -259,6 +335,17 @@ void main() {
   /** Per-frame update from the single animation loop. `motion` is false under reduced motion. */
   function tick(dt, motion, globe, clockDt = dt) {
     if (motion) { shared.uTime.value += dt; shared.uCloudTime.value += dt; starfield.tick(dt); }
+    if (Math.abs(zoomScale - targetZoom) > 1e-4) {
+      if (motion) {
+        zoomScale += (targetZoom - zoomScale) * Math.min(1, dt * 10);
+      } else {
+        zoomScale = targetZoom;
+      }
+      fitCamera(lastViewportW, lastViewportH);
+    } else if (zoomScale !== targetZoom) {
+      zoomScale = targetZoom;
+      fitCamera(lastViewportW, lastViewportH);
+    }
     // the day clock follows real elapsed time (capped), so a slow frame rate does not slow the day
     if (clock.playing) clock.subsolarLon = ((clock.subsolarLon - 360 * clockDt / DAY_SPEEDS[clock.speed]) % 360 + 540) % 360 - 180;
     if (globe) {
@@ -274,23 +361,37 @@ void main() {
     }
   }
 
-  let zoomScale = 1;
+  let zoomScale = 1, targetZoom = 1, lastViewportW = 0, lastViewportH = 0, flyArc = 0;
   function fitCamera(width, height) {
     if (!width || !height) return;
+    lastViewportW = width; lastViewportH = height;
     const halfVertical = THREE.MathUtils.degToRad(camera.fov / 2);
     const halfHorizontal = Math.atan(Math.tan(halfVertical) * width / height);
     // Portrait screens: fit the planet limb to the width (the thin atmosphere rim may crop) so the globe uses more of
-    // the tall viewer; landscape keeps the 13 % margin around the atmosphere.
-    const margin = width / height < .75 ? 1.0 : 1.13;
+    // the tall viewer; landscape keeps the 13 % margin around the atmosphere. Smooth ramp prevents pop at aspect transitions.
+    const aspect = width / height;
+    const margin = aspect <= 0.75 ? 1.0 : aspect >= 1.0 ? 1.13 : 1.0 + 0.13 * ((aspect - 0.75) / 0.25);
     const base = Math.max(2.98, margin / Math.sin(Math.min(halfVertical, halfHorizontal)));
-    camera.position.z = base * zoomScale;
+    camera.position.z = base * zoomScale * (1 + flyArc);
     starfield.follow(camera);
   }
-  const getZoom = () => zoomScale;
-  function setZoom(z, width, height) { zoomScale = THREE.MathUtils.clamp(z, 0.81, 2.4); fitCamera(width, height); }
-  function zoom(direction, width, height) {
-    zoomScale = THREE.MathUtils.clamp(zoomScale + direction * 0.085, 0.81, 2.4);
+  const getZoom = () => targetZoom;
+  function setZoom(z, width, height) {
+    targetZoom = zoomScale = THREE.MathUtils.clamp(z, 0.81, 2.4);
     fitCamera(width, height);
+  }
+  function setFlyArc(arc, width, height) {
+    flyArc = arc;
+    fitCamera(width || lastViewportW, height || lastViewportH);
+  }
+  function zoom(direction, width, height, instant = false) {
+    targetZoom = THREE.MathUtils.clamp(targetZoom + direction * 0.085, 0.81, 2.4);
+    if (instant) {
+      zoomScale = targetZoom;
+      fitCamera(width, height);
+    } else {
+      lastViewportW = width; lastViewportH = height;
+    }
   }
 
   /** Apply a PF-03 quality profile. Returns true when the pixel ratio changed (caller must resize). */
@@ -320,7 +421,7 @@ void main() {
     markers?.geometry.dispose(); markerMaterial.dispose();
   }
   return {
-    radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
+    radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, setFlyArc, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
     selectSettlement, setSettlementState, setStarLight, setSun, clock, sky: starfield,
     get quality() { return profileName; },
     info: () => ({ quality: profileName, pixelRatio: renderer.getPixelRatio(), clouds: !!clouds?.visible, cloudShadows: shared.uCloudShadow.value === 1, ocean: shared.uOceanFx.value === 1, natural: clock.natural, subsolarLon: +clock.subsolarLon.toFixed(2), declination: clock.declination, dayPlaying: clock.playing, selectedSettlement })

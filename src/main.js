@@ -37,13 +37,108 @@ root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
 const overlays = createOverlays(baseMesh, presentation.radius);
 const satellites = createSatelliteView();
-const BIOME_COLORS = { Ocean: '#164e70', Ice: '#eef8fa', Tundra: '#92aaa5', 'Boreal forest': '#286b63', 'Cold desert': '#baa17b', 'Temperate grassland': '#a8b276', 'Woodland / shrubland': '#9c925d', 'Temperate seasonal forest': '#4b8860', 'Temperate rainforest': '#2a7756', 'Subtropical desert': '#c79d67', 'Tropical seasonal forest / savanna': '#919f4e', 'Tropical rainforest': '#17664c' };
+const BIOME_COLORS = { Ocean: '#0e3852', Ice: '#f0f8fb', Tundra: '#879b93', 'Boreal forest': '#1f5748', 'Cold desert': '#b09b7d', 'Temperate grassland': '#8e9f64', 'Woodland / shrubland': '#857d4c', 'Temperate seasonal forest': '#3d7a52', 'Temperate rainforest': '#1f6648', 'Subtropical desert': '#c2945d', 'Tropical seasonal forest / savanna': '#829145', 'Tropical rainforest': '#11523b' };
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
-const SHORE_SEA = new THREE.Color('#488aa5'), SHORE_LAND = new THREE.Color('#cfba91');
-const BOUNDARY_COLORS = [null, new THREE.Color('#ff5a3c'), new THREE.Color('#3cc8ff'), new THREE.Color('#ffd23c')];
+const SHORE_SEA = new THREE.Color('#3d8299'), SHORE_LAND = new THREE.Color('#d4c49d');
+const BOUNDARY_COLORS = [null, new THREE.Color('#ff4d36'), new THREE.Color('#2ad4ff'), new THREE.Color('#ffc82a')];
 // Glacial maximum (glacial-0.8): ice sheets shaded by thickness, exposed shelves as land, land bridges highlighted.
 const ICE_THIN = new THREE.Color('#cfe3ee'), ICE_THICK = new THREE.Color('#f7fbff'), SHELF = new THREE.Color('#b9a77a'), BRIDGE = new THREE.Color('#ff9f3c'), RETREAT = new THREE.Color('#7fb6c9');
+
+// Pre-allocated scientific layer color ramps
+const RAMP_TEMP = [
+  { t: -50, c: new THREE.Color('#381864') },
+  { t: -30, c: new THREE.Color('#1e3c88') },
+  { t: -12, c: new THREE.Color('#1c6fae') },
+  { t: 0,   c: new THREE.Color('#38b8d0') },
+  { t: 10,  c: new THREE.Color('#3ea888') },
+  { t: 20,  c: new THREE.Color('#82b842') },
+  { t: 28,  c: new THREE.Color('#d89e24') },
+  { t: 36,  c: new THREE.Color('#db5620') },
+  { t: 45,  c: new THREE.Color('#b81822') }
+];
+function tempColor(t, c) {
+  if (t <= -50) return c.copy(RAMP_TEMP[0].c);
+  if (t >= 45) return c.copy(RAMP_TEMP[8].c);
+  for (let k = 0; k < 8; k++) {
+    const a = RAMP_TEMP[k], b = RAMP_TEMP[k + 1];
+    if (t <= b.t) return c.copy(a.c).lerp(b.c, (t - a.t) / (b.t - a.t));
+  }
+  return c.copy(RAMP_TEMP[8].c);
+}
+
+const RAMP_OCEAN = [
+  { h: -11000, c: new THREE.Color('#030814') },
+  { h: -6000,  c: new THREE.Color('#0a203a') },
+  { h: -3000,  c: new THREE.Color('#143c62') },
+  { h: -500,   c: new THREE.Color('#226694') },
+  { h: 0,      c: new THREE.Color('#46a8ca') }
+];
+const RAMP_LAND = [
+  { h: 0,     c: new THREE.Color('#2e6c52') },
+  { h: 350,   c: new THREE.Color('#58a876') },
+  { h: 900,   c: new THREE.Color('#9ec482') },
+  { h: 1800,  c: new THREE.Color('#d8b868') },
+  { h: 3000,  c: new THREE.Color('#c67848') },
+  { h: 4800,  c: new THREE.Color('#8a6252') },
+  { h: 6500,  c: new THREE.Color('#f0f2f5') }
+];
+function elevationColor(el, c) {
+  if (el < 0) {
+    if (el <= -11000) return c.copy(RAMP_OCEAN[0].c);
+    if (el >= 0) return c.copy(RAMP_OCEAN[4].c);
+    for (let k = 0; k < 4; k++) {
+      const a = RAMP_OCEAN[k], b = RAMP_OCEAN[k + 1];
+      if (el <= b.h) return c.copy(a.c).lerp(b.c, (el - a.h) / (b.h - a.h));
+    }
+    return c.copy(RAMP_OCEAN[4].c);
+  }
+  if (el >= 6500) return c.copy(RAMP_LAND[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_LAND[k], b = RAMP_LAND[k + 1];
+    if (el <= b.h) return c.copy(a.c).lerp(b.c, (el - a.h) / (b.h - a.h));
+  }
+  return c.copy(RAMP_LAND[6].c);
+}
+
+const RAMP_RAIN = [
+  { r: 0,    c: new THREE.Color('#f4e6c0') },
+  { r: 150,  c: new THREE.Color('#d4bf7c') },
+  { r: 400,  c: new THREE.Color('#88c2ad') },
+  { r: 900,  c: new THREE.Color('#389898') },
+  { r: 1800, c: new THREE.Color('#18688e') },
+  { r: 3000, c: new THREE.Color('#163884') },
+  { r: 5000, c: new THREE.Color('#101858') }
+];
+function rainColor(r, c) {
+  if (r <= 0) return c.copy(RAMP_RAIN[0].c);
+  if (r >= 5000) return c.copy(RAMP_RAIN[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_RAIN[k], b = RAMP_RAIN[k + 1];
+    if (r <= b.r) return c.copy(a.c).lerp(b.c, (r - a.r) / (b.r - a.r));
+  }
+  return c.copy(RAMP_RAIN[6].c);
+}
+
+const RAMP_AGE = [
+  { a: 0,   c: new THREE.Color('#e6241e') },
+  { a: 25,  c: new THREE.Color('#f68428') },
+  { a: 55,  c: new THREE.Color('#fabc36') },
+  { a: 85,  c: new THREE.Color('#68b852') },
+  { a: 120, c: new THREE.Color('#2ea2a4') },
+  { a: 160, c: new THREE.Color('#2258aa') },
+  { a: 200, c: new THREE.Color('#3e1878') }
+];
+function seafloorAgeColor(age, c) {
+  const clamped = Math.max(0, Math.min(200, age));
+  if (clamped <= 0) return c.copy(RAMP_AGE[0].c);
+  if (clamped >= 200) return c.copy(RAMP_AGE[6].c);
+  for (let k = 0; k < 6; k++) {
+    const a = RAMP_AGE[k], b = RAMP_AGE[k + 1];
+    if (clamped <= b.a) return c.copy(a.c).lerp(b.c, (clamped - a.a) / (b.a - a.a));
+  }
+  return c.copy(RAMP_AGE[6].c);
+}
 function glacialColor(i, layer, c, g) {
   const s = g.cell[i];
   if (s === GLACIAL_CELL.ice) return c.copy(ICE_THIN).lerp(ICE_THICK, Math.min(1, g.thickness[i] / 3500));
@@ -57,40 +152,58 @@ function glacialColor(i, layer, c, g) {
 const glacialView = () => eraSelect.value === 'glacial' || layerSelect.value === 'glacial';
 let fogMask = null; // PF-17 survey mode: unmapped cells are drawn as fog (presentation only)
 let diffMap = null; // PF-16 experiment: per-cell temperature change (experiment − baseline), drawn instead of the layer
+const clamp01 = x => x < 0 ? 0 : (x > 1 ? 1 : x);
 function color(i, layer, c) {
   if (diffMap) { const d = Math.max(-1, Math.min(1, diffMap[i] / 15)); return d < 0 ? c.setRGB(.85 + .15 * d, .88 + .5 * d, .95) : c.setRGB(.95, .88 - .6 * d, .85 - .75 * d); }
   if (fogMask && !fogMask[i]) return c.setRGB(.03, .045, .06);
   const el = planet.elevation[i];
   if (glacialView() && glacialColor(i, layer, c, planet.glaciation)) return c;
-  if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .55, planet.continental[i] ? .55 : .36); }
+  if (layer === 'plates') { const k = planet.plate[i]; return c.setHSL((k * 0.618034) % 1, .62, planet.continental[i] ? .58 : .34); }
   if (layer === 'boundaries') { const b = planet.boundary[i]; if (b) return c.copy(BOUNDARY_COLORS[b]); return planet.continental[i] ? c.setRGB(.42, .40, .36) : c.setRGB(.10, .16, .24); }
-  if (layer === 'age') { if (planet.continental[i]) return c.setRGB(.35, .33, .30); return c.setHSL(THREE.MathUtils.clamp(planet.seafloorAge[i] / 200, 0, 1) * .75, .8, .5); }
+  if (layer === 'age') { if (planet.continental[i]) return c.setRGB(.35, .33, .30); return seafloorAgeColor(planet.seafloorAge[i], c); }
   const m = seasonSelect.value === 'jan' ? 0 : seasonSelect.value === 'jul' ? 6 : -1;
-  if (layer === 'temperature') { const t = m < 0 ? planet.temperature[i] : planet.climate.temperatureMonthly[12 * i + m]; return c.setHSL(THREE.MathUtils.clamp((40 - t) / 95, 0, 1) * .68, .83, .49); }
-  if (layer === 'rainfall') { const r = m < 0 ? planet.rainfall[i] : planet.climate.precipitationMonthly[12 * i + m] * 12; return c.setHSL(.60, .8, Math.min(.78, .1 + Math.log10(1 + r) / 5.2)); }
+  if (layer === 'temperature') { const t = m < 0 ? planet.temperature[i] : planet.climate.temperatureMonthly[12 * i + m]; return tempColor(t, c); }
+  if (layer === 'rainfall') { const r = m < 0 ? planet.rainfall[i] : planet.climate.precipitationMonthly[12 * i + m] * 12; return rainColor(r, c); }
   if (layer === 'koppen') return c.copy(koppenColor[planet.koppen[i]]);
   if (layer === 'winds') { // rain shadow index: precipitation relative to the zonal-mean land precipitation at that latitude
     if (el < 0) return c.setRGB(.08, .13, .2);
     const z = zonalRain[Math.min(179, Math.max(0, Math.floor(planet.lat[i] + 90)))] || 1, q = Math.log2((planet.rainfall[i] + 20) / (z + 20));
-    return q < 0 ? c.setRGB(.55 + Math.min(.4, -q * .18), .42, .22) : c.setRGB(.2, .45 + Math.min(.4, q * .15), .55 + Math.min(.4, q * .2));
+    return q < 0 ? c.setRGB(.58 + Math.min(.38, -q * .18), .42, .22) : c.setRGB(.18, .46 + Math.min(.4, q * .15), .56 + Math.min(.4, q * .2));
   }
   if (layer === 'rivers' || layer === 'basins') {
     if (el < 0) return c.setRGB(.06, .12, .2);
     const lk = planet.hydro.lake[i];
     if (lk === LAKE.fresh) return c.setRGB(.2, .5, .85); if (lk === LAKE.salt) return c.setRGB(.45, .82, .76); if (lk === LAKE.saltFlat) return c.setRGB(.9, .88, .8);
-    if (layer === 'rivers') { const v = .2 + Math.min(.35, el / 12000); return c.setRGB(v, v * 1.05, v * .9); }
+    if (layer === 'rivers') { const v = .18 + Math.min(.28, el / 14000); return c.setRGB(v * 0.95, v * 1.05, v * 0.92); }
     const b = planet.hydro.basins[planet.hydro.basin[i]], hsh = Math.imul(b.mouth + 7, 2654435761) >>> 0;
-    return b.endorheic ? c.setHSL(.08 + (hsh % 60) / 1000, .45, .3 + (hsh % 7) / 60) : c.setHSL((hsh % 1000) / 1000, .5, .38 + (hsh % 5) / 40);
+    return b.endorheic ? c.setHSL(.08 + (hsh % 60) / 1000, .52, .32 + (hsh % 7) / 60) : c.setHSL((hsh % 1000) / 1000, .54, .36 + (hsh % 5) / 40);
   }
-  if (layer === 'elevation') return el < 0 ? c.setRGB(.03, .05 + Math.max(0, el + 11000) / 44000, .18 + Math.max(0, el + 11000) / 30000) : c.setHSL(.28 - Math.min(.2, el / 40000), .35, Math.min(.88, .22 + el / 9000));
+  if (layer === 'elevation') return elevationColor(el, c);
   if (el < 0) {
-    const d = THREE.MathUtils.clamp(-el / 9500, 0, 1);
-    c.setRGB(.016 + (1 - d) * .028, .058 + (1 - d) * .055, .135 + (1 - d) * .092);
-    if (coastalMask?.[i]) c.lerp(SHORE_SEA, .19);
+    const d = clamp01(-el / 8500);
+    c.setRGB(.014 + (1 - d) * .035, .048 + (1 - d) * .072, .120 + (1 - d) * .115);
+    if (coastalMask?.[i]) {
+      const shallow = clamp01((el + 800) / 800);
+      c.lerp(SHORE_SEA, .24 * shallow + .08);
+    }
     return c;
   }
+  const lk = planet.hydro?.lake?.[i];
+  if (lk === LAKE.fresh) return c.setRGB(.08, .26, .38);
+  if (lk === LAKE.salt) return c.setRGB(.16, .38, .44);
+  if (lk === LAKE.saltFlat) return c.setRGB(.84, .80, .74);
   c.copy(biomeColor[planet.biome[i]]);
-  if (coastalMask?.[i] && planet.temperature[i] > -1) c.lerp(SHORE_LAND, .14);
+  if (coastalMask?.[i] && planet.temperature[i] > -1) {
+    const beach = clamp01(1 - el / 350);
+    c.lerp(SHORE_LAND, .18 * beach);
+  }
+  if (el > 2200 && planet.temperature[i] < 3) {
+    const frost = clamp01((-planet.temperature[i]) / 7) * clamp01((el - 2200) / 1800);
+    if (frost > 0) c.lerp(biomeColor[1], frost * 0.76);
+  }
+  if (planet.rainfall[i] < 350 && planet.hydro?.discharge?.[i] > 8000) {
+    c.lerp(biomeColor[10], .28);
+  }
   return c;
 }
 function disposeAnnotation() {
@@ -142,7 +255,7 @@ function makeGlobe() {
 }
 // Prevailing-wind arrows for the selected season (annual = mean of January and July), drawn on ~2,500 cells.
 function windArrows() {
-  const P = baseMesh.positions, J = planet.climate.wind[0], Y = planet.climate.wind[1], s = seasonSelect.value, pts = [];
+  const P = baseMesh.positions, J = planet.climate.wind[0], Y = planet.climate.wind[1], s = seasonSelect.value, pts = [], col = [];
   for (let i = 0; i < planet.cellCount; i += 40) {
     const wx = s === 'jan' ? J[3 * i] : s === 'jul' ? Y[3 * i] : (J[3 * i] + Y[3 * i]) / 2, wy = s === 'jan' ? J[3 * i + 1] : s === 'jul' ? Y[3 * i + 1] : (J[3 * i + 1] + Y[3 * i + 1]) / 2, wz = s === 'jan' ? J[3 * i + 2] : s === 'jul' ? Y[3 * i + 2] : (J[3 * i + 2] + Y[3 * i + 2]) / 2;
     const k = 0.045, lift = presentation.radius(planet.elevation[i]) + .009;
@@ -152,9 +265,13 @@ function windArrows() {
     // arrow head: two short barbs rotated about the local normal
     const nx = P[3 * i], ny = P[3 * i + 1], nz = P[3 * i + 2], cx = wy * nz - wz * ny, cy = wz * nx - wx * nz, cz = wx * ny - wy * nx;
     pts.push(tx, ty, tz, tx - wx * k * .4 + cx * k * .25, ty - wy * k * .4 + cy * k * .25, tz - wz * k * .4 + cz * k * .25, tx, ty, tz, tx - wx * k * .4 - cx * k * .25, ty - wy * k * .4 - cy * k * .25, tz - wz * k * .4 - cz * k * .25);
+    const speed = Math.hypot(wx, wy, wz);
+    const v = Math.min(1, speed / 18);
+    const cr = 0.65 + 0.35 * v, cg = 0.85 + 0.15 * v, cb = 1.0;
+    for (let p = 0; p < 6; p++) col.push(cr, cg, cb);
   }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xf4f7fb, transparent: true, opacity: .8 }));
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .85 }));
 }
 // River network: a segment from every river cell to its receiver; brightness and colour by log discharge.
 function riverLines() {
@@ -242,7 +359,18 @@ document.querySelector('#export').addEventListener('click', () => {
   const url = URL.createObjectURL(new Blob([data], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'planet-' + planet.seed.replace(/[^a-z0-9-]/gi, '_') + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 let drag = false, lastX = 0, lastY = 0, px = 0, py = 0, lastInteraction = performance.now();
+let velX = 0, velY = 0, inertia = null;
 const canvas = renderer.domElement;
+canvas.addEventListener('webglcontextlost', e => {
+  e.preventDefault();
+  console.warn('Planet Forge: WebGL context lost; standing by for restore.');
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  console.info('Planet Forge: WebGL context restored; regenerating GPU resources.');
+  if (disposed) return;
+  renderedPlanet = null;
+  makeGlobe();
+});
 const pointers = new Map();
 let pinchDistance = 0, suppressTap = false;
 function pointerSpan() {
@@ -251,11 +379,13 @@ function pointerSpan() {
 }
 canvas.addEventListener('pointerdown', e => {
   interrupt();
+  inertia = null;
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   canvas.setPointerCapture(e.pointerId);
   lastInteraction = performance.now();
   if (pointers.size === 1) {
     drag = true; lastX = e.clientX; lastY = e.clientY; px = e.clientX; py = e.clientY;
+    velX = 0; velY = 0;
   } else {
     drag = false;
     suppressTap = true;
@@ -269,23 +399,32 @@ canvas.addEventListener('pointermove', e => {
   lastInteraction = performance.now();
   if (pointers.size >= 2) {
     const span = pointerSpan();
-    if (pinchDistance > 0) presentation.zoom((pinchDistance - span) / 65, root.clientWidth, root.clientHeight);
+    if (pinchDistance > 0) presentation.zoom((pinchDistance - span) / 65, root.clientWidth, root.clientHeight, true);
     pinchDistance = span;
     return;
   }
   if (!drag) return;
   const dx = e.clientX - lastX, dy = e.clientY - lastY;
-  mesh.rotation.y += dx * .006;
-  mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + dy * .006, -1.35, 1.35);
+  const stepY = dx * .006, stepX = dy * .006;
+  mesh.rotation.y += stepY;
+  mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + stepX, -1.35, 1.35);
+  velX = velX * 0.35 + stepY * 0.65;
+  velY = velY * 0.35 + stepX * 0.65;
   lastX = e.clientX; lastY = e.clientY;
 });
 canvas.addEventListener('pointerup', e => {
   const tap = pointers.size === 1 && pointers.has(e.pointerId) && !suppressTap;
   pointers.delete(e.pointerId);
   if (pointers.size === 0) suppressTap = false;
+  const wasDrag = drag;
   drag = false;
   lastInteraction = performance.now();
-  if (tap && Math.hypot(e.clientX - px, e.clientY - py) <= 7) inspectAt(e.clientX, e.clientY);
+  if (tap && Math.hypot(e.clientX - px, e.clientY - py) <= 7) {
+    inertia = null;
+    inspectAt(e.clientX, e.clientY);
+  } else if (wasDrag && motionOK() && Math.hypot(velX, velY) > 0.0008) {
+    inertia = { vx: THREE.MathUtils.clamp(velX, -0.06, 0.06), vy: THREE.MathUtils.clamp(velY, -0.04, 0.04) };
+  }
 });
 canvas.addEventListener('pointerleave', () => { hoverAt = null; overlays.setHover(-1); });
 let hoverAt = null;
@@ -293,6 +432,7 @@ canvas.addEventListener('pointercancel', e => {
   pointers.delete(e.pointerId);
   if (pointers.size === 0) suppressTap = false;
   drag = false;
+  inertia = null;
   lastInteraction = performance.now();
 });
 // PF-10: analytic surface pick in the planet frame (ray vs the displayed relief radius, then a walk over the cell mesh);
@@ -343,14 +483,23 @@ const motionOK = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;
 function flyTo(cell, duration = 1.6) {
   const to = facingRotation(cellDir(baseMesh, cell)), from = { x: mesh.rotation.x, y: mesh.rotation.y };
   to.y = from.y + (((to.y - from.y) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; // shortest way round
-  tween = { from, to, t: 0, dur: motionOK() ? duration : 0 };
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  tween = { from, to, dist, t: 0, dur: motionOK() ? duration : 0 };
 }
 function stepTween(dt) {
   if (!tween) return false;
   tween.t = tween.dur ? Math.min(1, tween.t + dt / tween.dur) : 1;
-  const e = tween.t < .5 ? 2 * tween.t * tween.t : 1 - (-2 * tween.t + 2) ** 2 / 2;
-  mesh.rotation.x = tween.from.x + (tween.to.x - tween.from.x) * e; mesh.rotation.y = tween.from.y + (tween.to.y - tween.from.y) * e;
-  if (tween.t >= 1) tween = null;
+  const e = tween.t < .5 ? 4 * tween.t * tween.t * tween.t : 1 - (-2 * tween.t + 2) ** 3 / 2;
+  mesh.rotation.x = tween.from.x + (tween.to.x - tween.from.x) * e;
+  mesh.rotation.y = tween.from.y + (tween.to.y - tween.from.y) * e;
+  if (motionOK() && tween.dur > 0 && tween.dist > 0.35) {
+    const arc = Math.sin(Math.PI * tween.t) * 0.10 * Math.min(1, tween.dist / 2.0);
+    presentation.setFlyArc(arc, root.clientWidth, root.clientHeight);
+  }
+  if (tween.t >= 1) {
+    if (tween.dur > 0) presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
   return true;
 }
 function startTour(route) {
@@ -365,10 +514,27 @@ function nextStop() {
   tourCaption.hidden = false; tourCaption.textContent = `${ROUTES[tour.route]} · ${tour.i + 1}/${tour.stops.length} — ${s.title}: ${s.text}`;
   observatory.refresh();
 }
-function stopTour(why) { if (!tour) return; tour = null; tween = null; tourCaption.hidden = true; lastTourEnd = why; observatory.refresh(); }
+function stopTour(why) {
+  if (!tour) return;
+  tour = null;
+  if (tween) {
+    presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
+  tourCaption.hidden = true;
+  lastTourEnd = why;
+  observatory.refresh();
+}
 let lastTourEnd = '';
 function stepTour(dt) { if (!tour || tween) return; tour.hold -= dt; if (tour.hold <= 0) nextStop(); }
-function interrupt() { if (tour) stopTour('interrupted'); tween = null; }
+function interrupt() {
+  if (tour) stopTour('interrupted');
+  if (tween) {
+    presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
+  inertia = null;
+}
 function captureView() { return { rx: mesh.rotation.x, ry: mesh.rotation.y, zoom: presentation.getZoom(), cell: selected >= 0 ? selected : null }; }
 function restoreView(v) {
   tween = { from: { x: mesh.rotation.x, y: mesh.rotation.y }, to: { x: v.rx ?? 0, y: v.ry ?? 0 }, t: 0, dur: motionOK() ? 1.2 : 0 };
@@ -413,8 +579,8 @@ const observatory = createObservatoryUI({
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');
 canvas.addEventListener('keydown', e => {
   if (local) { const m = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key]; if (m) { localMove({ dx: m[0], dy: m[1], dz: 0 }); e.preventDefault(); } else if (e.key === 'q' || e.key === 'e') { localMove({ dx: 0, dy: 0, dz: e.key === 'q' ? 200 : -200 }); e.preventDefault(); } return; }
-  if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
-canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight); }, { passive: false });
+  if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight, !motionOK()); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight, !motionOK()); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight, !motionOK()); }, { passive: false });
 function resize() {
   const w = root.clientWidth, h = root.clientHeight;
   if (!w || !h) return;
@@ -431,12 +597,25 @@ let lastFrame = performance.now(), prevFrame = 0;
 function animate(now = performance.now()) {
   if (disposed) return;
   requestAnimationFrame(animate);
+  if (document.hidden) {
+    lastFrame = now;
+    prevFrame = now;
+    return;
+  }
   const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
   const motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   const flying = mesh && stepTween(dt);
   if (mesh) stepTour(dt);
-  if (!drag && mesh && !flying && !tour && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
+  if (inertia && mesh && !flying && !tour && motion) {
+    mesh.rotation.y += inertia.vx;
+    mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + inertia.vy, -1.35, 1.35);
+    const decay = Math.pow(0.91, dt * 60);
+    inertia.vx *= decay;
+    inertia.vy *= decay;
+    if (Math.hypot(inertia.vx, inertia.vy) < 0.0001) inertia = null;
+  }
+  if (!drag && mesh && !flying && !tour && !inertia && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
   if (hoverAt && mesh && !drag) { overlays.setHover(pickAt(hoverAt[0], hoverAt[1])); hoverAt = null; }
   overlays.tick(dt, motion);
   satellites.update(motion ? dt * 120 : 0); // 2 simulated minutes per second; frozen under reduced motion

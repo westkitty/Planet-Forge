@@ -33,7 +33,9 @@ export function celestialPanels(app, h, status, rerender) {
         if (!e.centre) { status('Lunar eclipses are seen from the whole night side; no single shadow point.'); return; }
         const cell = cellAt(e.centre.lat, e.centre.lon); app.setSun(e.sunLat, e.sunLon); app.select(cell); app.flyTo(cell);
         const rings = Math.max(1, Math.round((e.umbraKm || 100) / app.planet.spacingKm)), d = ringDistance(app.planet.mesh, i => i === cell, rings), cells = []; for (let i = 0; i < app.planet.cellCount; i++) if (d[i] >= 0) cells.push(i);
-        app.highlight(cells); draft = { ...e, cell, rings }; rerender();
+        app.highlight(cells); draft = { ...e, cell, rings };
+        if (app.pulse) app.pulse(cell, 'observation');
+        rerender();
       };
       const observe = () => {
         if (!draft) return status('Jump to a solar eclipse first.');
