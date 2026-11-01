@@ -9,6 +9,10 @@
 </head>
 <body>
 <div id="app">
+  <div class="snap-guide snap-guide-top" aria-hidden="true"></div>
+  <div class="snap-guide snap-guide-bottom" aria-hidden="true"></div>
+  <div class="snap-guide snap-guide-left" aria-hidden="true"></div>
+  <div class="snap-guide snap-guide-right" aria-hidden="true"></div>
   <main id="viewer" role="region" aria-label="3D globe viewer"><div id="boot" class="boot" role="status" aria-live="polite"><div class="boot-card"><div class="boot-orb" aria-hidden="true"><div class="boot-ring"></div></div><div class="boot-badge" aria-hidden="true">Planetary Observatory · Geodesic Core</div><p id="boot-msg">Forging world… generating 100,002 cells of terrain, climate and rivers. This takes a few seconds.</p><p id="boot-err" class="boot-err" hidden></p></div></div><div id="cell-label" class="cell-label" hidden aria-hidden="true"></div><p id="tour-caption" class="tour-caption" hidden aria-live="polite"></p></main>
   <section id="drawer" class="drawer" role="dialog" aria-label="Observatory" hidden>
     <header class="drawer-head"><div role="tablist" aria-label="Observatory tools"><button role="tab" data-tab="cell">Why</button><button role="tab" data-tab="transect">Transect</button><button role="tab" data-tab="correlate">Correlate</button><button role="tab" data-tab="investigate">Investigate</button><button role="tab" data-tab="tours">Tours</button><button role="tab" data-tab="play">Play</button><button role="tab" data-tab="journal">Journal</button></div><button class="drawer-close" aria-label="Close observatory">×</button></header>
@@ -16,6 +20,20 @@
     <div class="drawer-body" role="tabpanel"></div>
   </section>
   <aside class="panel" aria-label="World controls and atlas telemetry">
+    <div class="panel-dock-bar" aria-label="Dock tools and drag handle">
+      <div class="panel-grip" role="button" tabindex="0" title="Drag to reposition (snaps to screen edges)" aria-label="Drag dock to reposition or snap">
+        <div class="grip-dots" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="grip-label" aria-hidden="true">Planet Forge Console</span>
+      </div>
+      <div class="dock-actions">
+        <button id="dock-orient-btn" class="dock-tool-btn" title="Toggle horizontal / vertical dock layout" aria-label="Toggle layout orientation">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h12M10 2l3 3-3 3M14 11H2M6 8l-3 3 3 3"/></svg>
+        </button>
+        <button id="fullscreen-btn" class="dock-tool-btn" title="Toggle full screen" aria-label="Toggle full screen">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>
+        </button>
+      </div>
+    </div>
     <div class="command-row" role="group" aria-label="Planet control console">
       <header class="brand">
         <span class="eyebrow">STINKY WEASEL / WORLD SYSTEMS</span>
