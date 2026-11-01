@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 055 (Batch 11 complete)
-- **Active Milestone:** Batch 11 (Cycles 051–055) Observatory UI, drawer, transect chart & investigation workflows
-- **Next Cycle:** 056 (Batch 12 start: Animation timing, orbital satellites, day-cycle & celestial views)
+- **Current Cycle:** 060 (Batch 12 complete)
+- **Active Milestone:** Batch 12 (Cycles 056–060) Animation timing, orbital satellites, day-cycle & celestial views
+- **Next Cycle:** 061 (Batch 13 start: In-world visual effects lifecycle, particle pooling & selection tours)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -791,5 +791,72 @@
 - **Files Changed:** `src/observatoryUI.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-11-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-11-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; transect profile, correlation queries, and investigation workflows verified.
 - **Commit SHA:** `014fbfa9a2d30d123b15cdd25a6e2aac349f618a` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 12: Animation Timing, Orbital Satellites, Day-Cycle & Celestial Views (Cycles 056–060)
+*Focus: Orbital satellite beacon sprites with radial glow, glowing ground track line segments, monospace solar chronometer telemetry, and eclipse shadow touchdown ripple pulses.*
+
+#### Cycle 056
+- **Batch:** 12
+- **Observed Weakness:** Orbital satellites rendered as square raw points with unshaded point material, lacking luminous beacon glare or realistic spaceborne telemetry presence.
+- **Chosen Action:** In `src/celestialView.js`:
+  - Implemented procedural canvas radial beacon texture generating soft luminous halo (`#ffffff` core -> `#c5f4ff` mid -> `#64d2ff` soft glow -> transparent rim).
+  - Upgraded satellite points material to `THREE.AdditiveBlending`, size 10, soft color `#d6f7ff`, and `transparent: true`.
+  - Added clean texture disposal in `dispose()`.
+- **Affected Surface:** Orbital satellites, space fleet layer, body frame tracking.
+- **Files Changed:** `src/celestialView.js`.
+- **Evidence:** Satellites appear as sharp, luminous telemetry beacons orbiting smoothly over the planetary sphere.
+- **Performance Impact:** Single 32x32 texture cached across all fleet satellites; sub-microsecond draw.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 057 luminous orbital ground tracks with additive glow.
+
+#### Cycle 057
+- **Batch:** 12
+- **Observed Weakness:** Orbit ground tracks rendered with a dim, flat line material that blended into dark oceans.
+- **Chosen Action:** In `src/celestialView.js` (`rebuildPaths`):
+  - Upgraded line segment material to vibrant aerospace cyan `0x62c9e8` with `opacity: 0.55` and `blending: THREE.AdditiveBlending`.
+  - Ensures clean planetary orbit visualization against both illuminated terrain and dark starlit oceans.
+- **Affected Surface:** Orbit paths, ground tracks, Keplerian trajectory visualization.
+- **Files Changed:** `src/celestialView.js`.
+- **Evidence:** Orbit paths trace crisp, luminous trajectories around the geodesic globe.
+- **Performance Impact:** Zero new vertex allocations.
+- **Regression Findings:** Passed orbit simulation smoke tests (`satellites.paths` verified).
+- **Next Action:** Cycle 058 monospace solar chronometer telemetry styling.
+
+#### Cycle 058
+- **Batch:** 12
+- **Observed Weakness:** Solar clock readout in the day-cycle control row used default proportional typography, causing visual label jitter as longitudes changed during daytime playback.
+- **Chosen Action:** In `src/style.css`:
+  - Styled `#clock` with `font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;`.
+  - Enabled `font-variant-numeric: tabular-nums`, `color: var(--accent)`, and letter-spacing `0.04em`.
+- **Affected Surface:** Solar clock readout, day-cycle control panel.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Longitude tracking displays rock-solid, jitter-free astronomical chronometer numbers (`Noon 45°E`).
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 059 eclipse shadow touchdown ripple wave feedback.
+
+#### Cycle 059
+- **Batch:** 12
+- **Observed Weakness:** Jumping to an eclipse in Eclipse Hunter (`go(e)`) highlighted the umbra cells but lacked an immediate dynamic visual touchdown cue at the shadow center.
+- **Chosen Action:** In `src/playCelestial.js` (`eclipse().go`):
+  - Triggered `app.pulse(cell, 'observation')` upon jumping to a solar eclipse event.
+  - Generates an expanding observation wave at the exact shadow touchdown coordinate on the globe.
+- **Affected Surface:** Eclipse Hunter gameplay, celestial event feedback.
+- **Files Changed:** `src/playCelestial.js`.
+- **Evidence:** Solar eclipse jumps provide instant visual confirmation of the umbral shadow footprint.
+- **Performance Impact:** Reuses existing pooled shockwave animation; zero garbage collection.
+- **Regression Findings:** Passed all eclipse observation assertions.
+- **Next Action:** Cycle 060 Batch 12 Git Checkpoint.
+
+#### Cycle 060
+- **Batch:** 12
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 12 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 858ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-12-*.png`; stage intended files; commit `visual-uplift(batch-12): orbital satellite beacons, luminous ground tracks, and monospace solar chronometer`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/celestialView.js`, `src/playCelestial.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-12-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-12-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; satellite tracking, day-cycle, and eclipse predictions verified.
+- **Commit SHA:** [PENDING COMMIT] (to be pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---

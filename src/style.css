@@ -25,6 +25,7 @@ h1{margin:1px 0 0;font-size:16.5px;letter-spacing:-.04em;font-weight:780;line-he
 .graphics-control{flex-basis:112px}
 .day-control{flex-basis:208px}
 .day-control button{min-width:64px}
+#clock{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-variant-numeric:tabular-nums;color:var(--accent);letter-spacing:.04em;font-weight:700}
 .cloud-control{flex-basis:84px}
 button[aria-pressed="false"]#clouds{background:linear-gradient(180deg,#102839,#0b1e2c);color:#9fb8c4;border-color:#2a4d61}
 .seedbox{display:flex;align-items:stretch;gap:5px}
