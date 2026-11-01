@@ -52,7 +52,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   page.on('response', r => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`); });
   const p = `[${vp.name}] `;
 
-  await page.goto(url, { waitUntil: 'networkidle' }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 120000 }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
   const canvas = page.locator('#viewer canvas');
   await canvas.waitFor({ state: 'visible', timeout: 15000 });
   await page.waitForTimeout(800);
@@ -513,7 +513,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const page = await context.newPage();
   // record, from inside the page on every animation frame, whether the loading screen was actually painted
   await page.addInitScript(() => { const f = () => { const b = document.getElementById('boot'); if (b && !b.hidden && getComputedStyle(b).display !== 'none') window.__bootSeen = true; if (!window.__pfStarted) requestAnimationFrame(f); }; requestAnimationFrame(f); });
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
   const bootVisible = await page.evaluate(() => !!window.__bootSeen);
   await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
@@ -523,7 +523,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   const noGl = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const p2 = await noGl.newPage();
   await p2.addInitScript(() => { const o = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/.test(t) ? null : o.call(this, t, ...a); }; });
-  await p2.goto(url, { waitUntil: 'load' }); await p2.waitForTimeout(1500);
+  await p2.goto(url, { waitUntil: 'load', timeout: 120000 }); await p2.waitForTimeout(1500);
   const msg = await p2.locator('#boot').innerText();
   check('[boot] without WebGL the page shows a readable reason instead of a blank screen', /could not start/i.test(msg) && /WebGL 2/.test(msg) && /graphics acceleration|hardware/i.test(msg), msg.slice(0, 200));
   await noGl.close();
@@ -531,7 +531,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
   for (const [name, opts] of [['Retina desktop (2x)', { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }], ['phone (3x)', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true }]]) {
     const ctx = await browser.newContext(opts), pg = await ctx.newPage(), errs = [];
     pg.on('pageerror', e => errs.push(e.message));
-    await pg.goto(baseUrl, { waitUntil: 'load' }); // default Auto graphics, as real visitors get it
+    await pg.goto(baseUrl, { waitUntil: 'load', timeout: 120000 }); // default Auto graphics, as real visitors get it
     const ok = await pg.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 }).then(() => true, () => false);
     const cells = await pg.evaluate(() => window.__planetForge?.cells ?? 0), shownErr = await pg.locator('#boot-err').isVisible();
     check(`[boot] ${name}: the world generates and renders with no start-up error`, ok && cells === 100002 && !shownErr && errs.length === 0, errs.join(' ; ') || (shownErr ? await pg.locator('#boot-err').innerText() : `cells=${cells}`));
@@ -541,7 +541,7 @@ for (const vp of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile
 { // PF-03 Auto: on this software renderer frames are far over budget, so Auto must step down from measurements.
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'networkidle' }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
+  await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 120000 }); await page.waitForFunction(() => window.__pfStarted, null, { timeout: 120000 });
   await page.waitForFunction(() => window.__planetForgeView && window.__planetForgeView.info().controller.changes.length > 0, null, { timeout: 30000 }).catch(() => {});
   const q = await page.evaluate(() => window.__planetForgeView.info());
   const label = await page.locator('#graphics option[value=auto]').innerText();

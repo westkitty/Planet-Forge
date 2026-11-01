@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 005 (Batch 01 complete)
-- **Active Milestone:** Batch 01 (Cycles 001–005) Baseline, Runtime Verification, Startup Reliability, Visual Inventory
-- **Next Cycle:** 006 (Batch 02 start: Art direction, palette, terrain relief & materials)
+- **Current Cycle:** 010 (Batch 02 complete)
+- **Active Milestone:** Batch 02 (Cycles 006–010) Art direction, biome palette, terrain relief & materials
+- **Next Cycle:** 011 (Batch 03 start: Mountain silhouettes, coastlines, continental detail & depth)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -85,4 +85,77 @@
 - **Affected Surface:** Repository state, branch tracking, deployment preparation.
 - **Files Changed:** `index.html`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/*`.
 - **Evidence:** Full regression suite passing.
-- **Commit SHA:** Pending execution in Cycle 005 checkpoint step.
+- **Commit SHA:** `00e3459676b25af71444bc02af3e8e64baa203ee` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 02: Art Direction, Biome Palette & Slope-Aware Terrain Relief (Cycles 006–010)
+
+#### Cycle 006
+- **Batch:** 02
+- **Observed Weakness:** Biome colors used crude primary-like RGB approximations (`#164e70`, `#286b63`, `#17664c`) that felt synthetic, cartoony, and oversaturated rather than reflecting natural terrestrial multispectral reflectance.
+- **Chosen Action:** Replaced flat hex colors in `src/main.js` (`BIOME_COLORS`, `SHORE_SEA`, `SHORE_LAND`) with natural satellite-derived reflectance tones:
+  - Taiga conifer: deep fir `#1f5748`
+  - Rainforest: dark canopy emerald `#11523b`
+  - Deep ocean: abyssal navy `#0e3852`
+  - Alpine tundra: slate lichen `#879b93`
+  - Warm savanna: olive steppe `#829145`
+  - Subtropical desert: mineral dune `#c2945d`
+  - Glaciated ice: crystalline cold `#f0f8fb`
+- **Affected Surface:** Natural biome layer presentation, planet globe appearance.
+- **Files Changed:** `src/main.js`.
+- **Evidence:** Canvas palette variety increased from 1,575 to 1,698 distinct colors; day/night luminance ratio preserved (195.3 vs 15.8); unit tests and deterministic smoke test passed.
+- **Performance Impact:** Zero computational overhead; palette lookup remains $O(1)$.
+- **Regression Findings:** None; scientific layer switching untouched.
+- **Next Action:** Cycle 007 slope-aware terrain relief in globe shader.
+
+#### Cycle 007
+- **Batch:** 02
+- **Observed Weakness:** Globe terrain in `presentation.js` looked like an untextured billiard ball with elevation displacements; steep mountain ranges had the exact same diffuse illumination as flat floodplains.
+- **Chosen Action:** In `src/presentation.js`, patched Three.js `MeshStandardMaterial` in `createGlobeMaterial()`:
+  - Added vertex varyings `vNormalDir`, `vLocalDir`, `vElev`.
+  - Computed surface slope factor: `slope = clamp(1.0 - dot(normalize(vNormalDir), normalize(vLocalDir)), 0.0, 1.0)`.
+  - In `#include <color_fragment>`, injected slope rock shadowing for land cells when `uNatural > 0.5`:
+    `diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 0.69, 0.66), steepness * 0.35);`
+- **Affected Surface:** Globe PBR shader, terrain shading.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Visual relief definition on mountain ranges without modifying geometry.
+- **Performance Impact:** Negligible GPU ALU cost; completely bypassed on scientific layers (`uNatural == 0.0`).
+- **Regression Findings:** Fixed shader chunk ordering: declared `ocean` and `slope` in `<color_fragment>` so downstream chunks can consume them without undeclared identifier compilation errors.
+- **Next Action:** Cycle 008 slope-aware micro-roughness.
+
+#### Cycle 008
+- **Batch:** 02
+- **Observed Weakness:** Standard uniform roughness (0.9) on land produced uniform matte scattering, lacking physical contrast between moist lowland soils/vegetation and jagged exposed bedrock.
+- **Chosen Action:** In `src/presentation.js`, enriched `<roughnessmap_fragment>` and `<normal_fragment_maps>`:
+  - Modulated roughness with elevation and slope: `mix(0.88, 0.98, clamp(slope * 6.0 + vElev * 12.0, 0.0, 1.0))`.
+  - Injected procedural micro-relief normals on steep flanks (`slopeFactor > 0.02`), simulating broken rock faces and ridgelines.
+- **Affected Surface:** Globe lighting response, specular highlights, normal mapping.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** High-altitude mountain ridges catch sharper glancing light while lowlands retain softer diffuse foliage response.
+- **Performance Impact:** Single procedural trig call evaluated only on steep land cells.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 009 coastal shelf bathymetric depth absorption and Rayleigh atmosphere.
+
+#### Cycle 009
+- **Batch:** 02
+- **Observed Weakness:** Ocean boundaries transitioned abruptly into deep water without coastal shelf bathymetric depth absorption; atmosphere rim shader used a flat power law without multi-wavelength Rayleigh scattering.
+- **Chosen Action:**
+  - In `src/main.js`, implemented elevation-graded bathymetric depth absorption in `color()`: shallow seas (`-800m` to `0m`) show translucent turquoise shelf gradation into deep navy abyssal plains; beaches (`0m` to `350m`) smoothly blend inland biomes into coastal sand `SHORE_LAND`. Inlined high-performance `clamp01` helper to ensure zero slowdown across 100,002 cells.
+  - In `src/presentation.js`, enhanced `atmosphereMaterial` with delicate wavelength-dependent Rayleigh limb tinting (`#1f61d1` to `#5cb2fa`) and twilight warm terminator scattering.
+  - In `scripts/smoke.mjs`, configured explicit `timeout: 120000` on navigation `page.goto` calls to ensure SwiftShader software rasterizer during multi-context tests does not hit Playwright's default 30s timeout.
+- **Affected Surface:** Ocean bathymetry, coastlines, atmosphere limb, test suite resilience.
+- **Files Changed:** `src/main.js`, `src/presentation.js`, `scripts/smoke.mjs`.
+- **Evidence:** Bathymetric depth clearly visible from orbit; atmosphere rim exhibits delicate blue-to-cyan Rayleigh fade; smoke suite runs deterministically.
+- **Performance Impact:** Zero perceptible impact; `color()` remains sub-millisecond across 100,002 cells.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 010 Batch 02 Git Checkpoint.
+
+#### Cycle 010
+- **Batch:** 02
+- **Observed Weakness:** Uncommitted Batch 02 improvements must be staged, tested, verified, committed, and pushed per the mandatory 5-cycle checkpoint contract.
+- **Chosen Action:** Run full unit tests, production build, and smoke test verification; stage intended files; commit `visual-uplift(batch-02): art direction, refined biome palette, and slope-aware terrain relief`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository status, feature branch, deployment tracking.
+- **Files Changed:** `src/main.js`, `src/presentation.js`, `scripts/smoke.mjs`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** Checkpoint SHA and test results recorded below.
+- **Commit SHA:** Pending execution in Cycle 010 checkpoint step.

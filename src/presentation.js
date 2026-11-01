@@ -68,13 +68,15 @@ void main() { vec4 world = modelMatrix * vec4(position, 1.0); vWorldPosition = w
     fragmentShader: `uniform vec3 uSun; uniform float uNatural; varying vec3 vWorldNormal; varying vec3 vWorldPosition;
 void main() {
   vec3 N = normalize(vWorldNormal); vec3 V = normalize(cameraPosition - vWorldPosition);
-  float rim = pow(1.0 - abs(dot(N, V)), 3.2);
+  float rim = pow(1.0 - abs(dot(N, V)), 3.0);
   float s = dot(N, uSun);
-  float day = smoothstep(-0.35, 0.62, s);
-  vec3 col = mix(vec3(0.045, 0.13, 0.31), vec3(0.20, 0.49, 0.81), day);
-  float twilight = exp(-pow(s / 0.2, 2.0)) * uNatural;            // dawn/dusk band along the terminator
-  col = mix(col, vec3(1.0, 0.52, 0.24), twilight * 0.55);
-  gl_FragColor = vec4(col, rim * (0.18 + 0.48 * day + 0.25 * twilight));
+  float day = smoothstep(-0.25, 0.55, s);
+  vec3 dayColor = mix(vec3(0.12, 0.38, 0.82), vec3(0.36, 0.70, 0.98), pow(rim, 1.4));
+  vec3 nightColor = vec3(0.025, 0.08, 0.22);
+  vec3 col = mix(nightColor, dayColor, day);
+  float twilight = exp(-pow(s / 0.18, 2.0)) * uNatural;
+  col = mix(col, vec3(1.0, 0.50, 0.20), twilight * 0.62);
+  gl_FragColor = vec4(col, rim * (0.16 + 0.52 * day + 0.28 * twilight));
 }`,
     side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   });
@@ -106,21 +108,39 @@ void main() {
     material.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, shared);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute float aOcean;\nattribute float aLights;\nvarying float vOcean;\nvarying float vLights;\nvarying vec3 vLocalDir;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcean = aOcean; vLights = aLights; vLocalDir = normalize(position);');
+        .replace('#include <common>', '#include <common>\nattribute float aOcean;\nattribute float aLights;\nvarying float vOcean;\nvarying float vLights;\nvarying vec3 vLocalDir;\nvarying vec3 vNormalDir;\nvarying float vElev;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcean = aOcean; vLights = aLights; vLocalDir = normalize(position); vNormalDir = normalize(normal); vElev = length(position) - 1.0;');
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
 uniform vec3 uSunLocal; uniform float uNatural, uOceanFx, uSwell, uTime, uCloudShadow, uLightsOn;
 varying float vOcean; varying float vLights; varying vec3 vLocalDir;
+varying vec3 vNormalDir; varying float vElev;
 ${cloudGlsl}
 float swellNoise(vec3 p) { return sin(p.x * 1.7 + p.y * 0.4) * sin(p.z * 1.9 - p.y * 0.6) + 0.5 * sin(p.x * 3.1 - p.z * 2.3 + p.y); }`)
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        .replace('#include <color_fragment>', `#include <color_fragment>
 float ocean = step(0.001, vOcean) * uOceanFx;
-roughnessFactor = mix(roughnessFactor, 0.2 + 0.1 * (1.0 - vOcean), ocean);`)
+float slope = clamp(1.0 - dot(normalize(vNormalDir), normalize(vLocalDir)), 0.0, 1.0);
+if (ocean == 0.0 && uNatural > 0.5) {
+  float steepness = clamp(slope * 5.5, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 0.69, 0.66), steepness * 0.35);
+}`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+if (ocean > 0.0) {
+  roughnessFactor = 0.16 + 0.12 * (1.0 - vOcean);
+} else if (uNatural > 0.5) {
+  roughnessFactor = mix(0.88, 0.98, clamp(slope * 6.0 + vElev * 12.0, 0.0, 1.0));
+}`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 if (ocean * uSwell > 0.0) {
   vec3 q = vLocalDir * 160.0 + vec3(uTime * 0.35, 0.0, uTime * 0.27);
   normal = normalize(normal + 0.045 * vec3(swellNoise(q), swellNoise(q.zxy + 7.0), 0.0));
+} else if (uNatural > 0.5) {
+  float slopeFactor = clamp(slope * 7.0, 0.0, 1.0);
+  if (slopeFactor > 0.02) {
+    vec3 mq = vLocalDir * 320.0;
+    float microRelief = sin(mq.x * 2.1 + mq.y * 1.5) * sin(mq.z * 1.9 - mq.x * 0.7);
+    normal = normalize(normal + 0.022 * slopeFactor * vec3(microRelief, -microRelief * 0.5, microRelief * 0.3));
+  }
 }`)
         .replace('#include <aomap_fragment>', `if (uCloudShadow > 0.0) {
   float cloudShade = 1.0 - 0.5 * cloudCover(normalize(vLocalDir + uSunLocal * 0.015));

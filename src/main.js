@@ -37,10 +37,10 @@ root.appendChild(renderer.domElement);
 const presentation = createPresentation(scene, camera, renderer, baseMesh);
 const overlays = createOverlays(baseMesh, presentation.radius);
 const satellites = createSatelliteView();
-const BIOME_COLORS = { Ocean: '#164e70', Ice: '#eef8fa', Tundra: '#92aaa5', 'Boreal forest': '#286b63', 'Cold desert': '#baa17b', 'Temperate grassland': '#a8b276', 'Woodland / shrubland': '#9c925d', 'Temperate seasonal forest': '#4b8860', 'Temperate rainforest': '#2a7756', 'Subtropical desert': '#c79d67', 'Tropical seasonal forest / savanna': '#919f4e', 'Tropical rainforest': '#17664c' };
+const BIOME_COLORS = { Ocean: '#0e3852', Ice: '#f0f8fb', Tundra: '#879b93', 'Boreal forest': '#1f5748', 'Cold desert': '#b09b7d', 'Temperate grassland': '#8e9f64', 'Woodland / shrubland': '#857d4c', 'Temperate seasonal forest': '#3d7a52', 'Temperate rainforest': '#1f6648', 'Subtropical desert': '#c2945d', 'Tropical seasonal forest / savanna': '#829145', 'Tropical rainforest': '#11523b' };
 const koppenColor = KOPPEN.map(k => new THREE.Color(KOPPEN_COLORS[k]));
 const biomeColor = BIOMES.map(b => new THREE.Color(BIOME_COLORS[b]));
-const SHORE_SEA = new THREE.Color('#488aa5'), SHORE_LAND = new THREE.Color('#cfba91');
+const SHORE_SEA = new THREE.Color('#3d8299'), SHORE_LAND = new THREE.Color('#d4c49d');
 const BOUNDARY_COLORS = [null, new THREE.Color('#ff5a3c'), new THREE.Color('#3cc8ff'), new THREE.Color('#ffd23c')];
 // Glacial maximum (glacial-0.8): ice sheets shaded by thickness, exposed shelves as land, land bridges highlighted.
 const ICE_THIN = new THREE.Color('#cfe3ee'), ICE_THICK = new THREE.Color('#f7fbff'), SHELF = new THREE.Color('#b9a77a'), BRIDGE = new THREE.Color('#ff9f3c'), RETREAT = new THREE.Color('#7fb6c9');
@@ -57,6 +57,7 @@ function glacialColor(i, layer, c, g) {
 const glacialView = () => eraSelect.value === 'glacial' || layerSelect.value === 'glacial';
 let fogMask = null; // PF-17 survey mode: unmapped cells are drawn as fog (presentation only)
 let diffMap = null; // PF-16 experiment: per-cell temperature change (experiment − baseline), drawn instead of the layer
+const clamp01 = x => x < 0 ? 0 : (x > 1 ? 1 : x);
 function color(i, layer, c) {
   if (diffMap) { const d = Math.max(-1, Math.min(1, diffMap[i] / 15)); return d < 0 ? c.setRGB(.85 + .15 * d, .88 + .5 * d, .95) : c.setRGB(.95, .88 - .6 * d, .85 - .75 * d); }
   if (fogMask && !fogMask[i]) return c.setRGB(.03, .045, .06);
@@ -84,13 +85,19 @@ function color(i, layer, c) {
   }
   if (layer === 'elevation') return el < 0 ? c.setRGB(.03, .05 + Math.max(0, el + 11000) / 44000, .18 + Math.max(0, el + 11000) / 30000) : c.setHSL(.28 - Math.min(.2, el / 40000), .35, Math.min(.88, .22 + el / 9000));
   if (el < 0) {
-    const d = THREE.MathUtils.clamp(-el / 9500, 0, 1);
-    c.setRGB(.016 + (1 - d) * .028, .058 + (1 - d) * .055, .135 + (1 - d) * .092);
-    if (coastalMask?.[i]) c.lerp(SHORE_SEA, .19);
+    const d = clamp01(-el / 8500);
+    c.setRGB(.014 + (1 - d) * .035, .048 + (1 - d) * .072, .120 + (1 - d) * .115);
+    if (coastalMask?.[i]) {
+      const shallow = clamp01((el + 800) / 800);
+      c.lerp(SHORE_SEA, .24 * shallow + .08);
+    }
     return c;
   }
   c.copy(biomeColor[planet.biome[i]]);
-  if (coastalMask?.[i] && planet.temperature[i] > -1) c.lerp(SHORE_LAND, .14);
+  if (coastalMask?.[i] && planet.temperature[i] > -1) {
+    const beach = clamp01(1 - el / 350);
+    c.lerp(SHORE_LAND, .18 * beach);
+  }
   return c;
 }
 function disposeAnnotation() {
