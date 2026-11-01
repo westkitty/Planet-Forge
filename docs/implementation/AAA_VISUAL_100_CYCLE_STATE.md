@@ -645,6 +645,6 @@
 - **Affected Surface:** Repository feature branch state.
 - **Files Changed:** `src/overlays.js`, `src/presentation.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-09-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-09-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; settlement selection, reticle telemetry, and event pulses verified.
-- **Commit SHA:** Pending checkpoint commit.
+- **Commit SHA:** `a9c449739aae73b11373afaac9eabcd628efb8be` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
