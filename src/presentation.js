@@ -123,17 +123,23 @@ float slope = clamp(1.0 - dot(normalize(vNormalDir), normalize(vLocalDir)), 0.0,
 if (ocean == 0.0 && uNatural > 0.5) {
   float steepness = clamp(slope * 5.5, 0.0, 1.0);
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 0.69, 0.66), steepness * 0.35);
+} else if (ocean > 0.0 && uNatural > 0.5) {
+  float shallowRim = clamp(1.0 - vOcean * 3.8, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.14, 0.42, 0.50), shallowRim * 0.32);
+  float abyssalTrench = clamp(-vElev * 15.0 - 0.2, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.72, abyssalTrench * 0.35);
 }`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 if (ocean > 0.0) {
-  roughnessFactor = 0.16 + 0.12 * (1.0 - vOcean);
+  roughnessFactor = 0.12 + 0.14 * (1.0 - vOcean);
 } else if (uNatural > 0.5) {
   roughnessFactor = mix(0.88, 0.98, clamp(slope * 6.0 + vElev * 12.0, 0.0, 1.0));
 }`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 if (ocean * uSwell > 0.0) {
   vec3 q = vLocalDir * 160.0 + vec3(uTime * 0.35, 0.0, uTime * 0.27);
-  normal = normalize(normal + 0.045 * vec3(swellNoise(q), swellNoise(q.zxy + 7.0), 0.0));
+  vec3 q2 = vLocalDir * 380.0 - vec3(uTime * 0.20, 0.0, uTime * 0.16);
+  normal = normalize(normal + 0.038 * vec3(swellNoise(q), swellNoise(q.zxy + 7.0), 0.0) + 0.015 * vec3(swellNoise(q2), swellNoise(q2.yzx + 3.0), 0.0));
 } else if (uNatural > 0.5) {
   float slopeFactor = clamp(slope * 7.0, 0.0, 1.0);
   if (slopeFactor > 0.02) {

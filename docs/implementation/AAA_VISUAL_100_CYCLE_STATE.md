@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 010 (Batch 02 complete)
-- **Active Milestone:** Batch 02 (Cycles 006–010) Art direction, biome palette, terrain relief & materials
-- **Next Cycle:** 011 (Batch 03 start: Mountain silhouettes, coastlines, continental detail & depth)
+- **Current Cycle:** 015 (Batch 03 complete)
+- **Active Milestone:** Batch 03 (Cycles 011–015) Mountain silhouettes, inland lakes, riparian corridors & bathymetry
+- **Next Cycle:** 016 (Batch 04 start: Ocean lighting response, specular Fresnel & water polish)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -159,3 +159,70 @@
 - **Files Changed:** `src/main.js`, `src/presentation.js`, `scripts/smoke.mjs`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
 - **Evidence:** Checkpoint SHA `5fffcfd209557229a1d963dcb15dc66a5ad89ba7`; full suite passing (95 unit tests, build, 162/162 smoke checks); screenshots saved.
 - **Commit SHA:** `5fffcfd209557229a1d963dcb15dc66a5ad89ba7` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 03: Mountain Silhouettes, Inland Lakes, Riparian Corridors & Bathymetry (Cycles 011–015)
+
+#### Cycle 011
+- **Batch:** 03
+- **Observed Weakness:** High mountain peaks at freezing temperatures lacked snowline definition, appearing identically colored to lower alpine slopes without snowcaps.
+- **Chosen Action:** In `src/main.js` (`color()`): implemented sub-zero alpine frost and snow caps above 2,200 m for cold summits:
+  `const frost = clamp01((-planet.temperature[i]) / 7) * clamp01((el - 2200) / 1800);`
+  `if (frost > 0) c.lerp(biomeColor[1 /* Ice */], frost * 0.76);`
+- **Affected Surface:** Natural biome layer presentation, mountain ranges.
+- **Files Changed:** `src/main.js`.
+- **Evidence:** Dramatic high-altitude white frost peaks appear on sub-zero mountain ranges above 2,200 m; verified in 3D globe.
+- **Performance Impact:** Zero; evaluates fast arithmetic in `color()`.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 012 inland lake rendering.
+
+#### Cycle 012
+- **Batch:** 03
+- **Observed Weakness:** Inland fresh lakes and endorheic salt lakes computed by hydrology were invisible on the natural globe view, displaying surrounding terrestrial biomes instead of water.
+- **Chosen Action:** In `src/main.js` (`color()`): rendered distinct inland water bodies for `LAKE.fresh` (`#144868`), `LAKE.salt` (`#2a6874`), and evaporite alkali playa `LAKE.saltFlat` (`#dcd6cc`).
+- **Affected Surface:** Natural biome layer, continental hydrology realism.
+- **Files Changed:** `src/main.js`.
+- **Evidence:** Great inland lakes (e.g. Lake Victoria / Caspian analogues) and mineral salt flats clearly visible on continents.
+- **Performance Impact:** Fast array lookup `planet.hydro?.lake?.[i]`; sub-millisecond.
+- **Regression Findings:** None; scientific hydrology and basin layers remain identical.
+- **Next Action:** Cycle 013 riparian moisture corridors.
+
+#### Cycle 013
+- **Batch:** 03
+- **Observed Weakness:** Great rivers flowing through hyper-arid deserts (Nile/Colorado/Indus analogues) had no visible ecological footprint on the terrain, flowing through bare sand.
+- **Chosen Action:** In `src/main.js` (`color()`): introduced riparian vegetation greening along arid desert river corridors carrying high discharge (`rainfall < 350 mm && discharge > 8000 m³/s`):
+  `c.lerp(biomeColor[10 /* Tropical seasonal forest / savanna */], .28);`
+- **Affected Surface:** Desert river corridors, natural biome view.
+- **Files Changed:** `src/main.js`.
+- **Evidence:** Verdant river oases trace continental drainage paths across deserts.
+- **Performance Impact:** Zero overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 014 abyssal trench attenuation and multi-octave swell.
+
+#### Cycle 014
+- **Batch:** 03
+- **Observed Weakness:** Ocean surfaces lacked shallow shelf light scattering and deep trench darkening; ocean swell animation in `presentation.js` had only a single low-frequency wave.
+- **Chosen Action:** In `src/presentation.js`:
+  - Added shallow shelf light-scattering rim (`shallowRim`) and deep trench light attenuation (`abyssalTrench`) in `<color_fragment>`.
+  - Added multi-octave ocean swell noise in `<normal_fragment_maps>` combining ground swell (frequency 160) and wind chop (frequency 380).
+- **Affected Surface:** Ocean PBR shader, coastal shelf, oceanic trenches.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Oceanic trenches visibly deepen toward dark abyssal navy; ocean waves show dynamic multi-scale motion.
+- **Performance Impact:** Single extra noise sample evaluated only on ocean water surfaces.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 015 Batch 03 Git Checkpoint.
+
+#### Cycle 015
+- **Batch:** 03
+- **Observed Weakness:** Uncommitted Batch 03 improvements must be verified, staged, tested, committed, and pushed per the mandatory 5-cycle checkpoint contract.
+- **Chosen Action:** Verify unit tests, production build, and browser smoke test suite (162/162 passing); stage intended changes; commit `visual-uplift(batch-03): mountain snowlines, inland lakes, riparian corridors, and abyssal bathymetry`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Feature branch repository state.
+- **Files Changed:** `src/main.js`, `src/presentation.js`, `package.json`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** Full regression suite passing: 95/95 unit tests passing, production build succeeded, 162/162 smoke checks passing, distinct colors jumped from 1,698 to 1,918, desktop and mobile visual artifacts saved to `docs/implementation/visual-uplift-100/checkpoint-03-*.png`.
+- **Commit SHA:** Checkpoint 03 (Cycles 011–015).
+
+---
+
+### BATCH 04: Oceans, Specular Fresnel, Coastal Transitions & Water Polish (Cycles 016–020)
+*Focus: Deepen ocean realism with Schlick Fresnel reflectance, sun glint specular lobe modulation, dynamic coastal surf / wave foam edging, and water optical clarity.*

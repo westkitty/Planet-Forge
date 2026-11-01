@@ -93,10 +93,21 @@ function color(i, layer, c) {
     }
     return c;
   }
+  const lk = planet.hydro?.lake?.[i];
+  if (lk === LAKE.fresh) return c.setRGB(.08, .26, .38);
+  if (lk === LAKE.salt) return c.setRGB(.16, .38, .44);
+  if (lk === LAKE.saltFlat) return c.setRGB(.84, .80, .74);
   c.copy(biomeColor[planet.biome[i]]);
   if (coastalMask?.[i] && planet.temperature[i] > -1) {
     const beach = clamp01(1 - el / 350);
     c.lerp(SHORE_LAND, .18 * beach);
+  }
+  if (el > 2200 && planet.temperature[i] < 3) {
+    const frost = clamp01((-planet.temperature[i]) / 7) * clamp01((el - 2200) / 1800);
+    if (frost > 0) c.lerp(biomeColor[1], frost * 0.76);
+  }
+  if (planet.rainfall[i] < 350 && planet.hydro?.discharge?.[i] > 8000) {
+    c.lerp(biomeColor[10], .28);
   }
   return c;
 }
