@@ -37,7 +37,7 @@ option{background:#091a26;color:#effaff}
 button{padding:0 12px;cursor:pointer;background:linear-gradient(180deg,#246573,#194a55);border:1px solid rgba(131,207,224,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 2px 5px rgba(0,0,0,.4);font-weight:750;letter-spacing:.015em;white-space:nowrap;transition:background .15s ease,border-color .15s ease,box-shadow .15s ease,transform .12s ease}
 button:hover{background:linear-gradient(180deg,#2f7e8f,#1e5966);border-color:rgba(131,207,224,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 10px rgba(131,207,224,.25)}
 button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
-button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focus-visible{outline:2px solid var(--warm);outline-offset:1px}
+button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focus-visible,[role=tab]:focus-visible,.drawer-close:focus-visible{outline:2px solid var(--warm);outline-offset:1px}
 #generate{background:linear-gradient(180deg,#e4ba78,#c89e5c);color:#05141e;border-color:#f7d8a6;font-weight:800;letter-spacing:.03em;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 8px rgba(228,186,120,.3)}
 #generate:hover{background:linear-gradient(180deg,#f2cb8e,#d8ac68);border-color:#ffe6bf;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 0 12px rgba(228,186,120,.45)}
 .action-group{display:flex;align-items:end;gap:5px;flex:0 0 auto;padding-top:12px}

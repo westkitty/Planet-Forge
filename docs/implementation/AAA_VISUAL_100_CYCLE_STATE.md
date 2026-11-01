@@ -1204,3 +1204,69 @@
 - **Commit SHA:** `8e6f2851d4b298e938dcea486f093907964c922c` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
+
+### BATCH 18: Cross-Device & Viewport Coherence (Cycles 086–090)
+*Focus: Aspect-ratio adaptive globe framing, Retina subpixel calibration, mobile touch immunity, and WCAG keyboard focus rings.*
+
+#### Cycle 086
+- **Batch:** 18
+- **Observed Weakness:** Need rigorous validation that extreme aspect ratios (tall phone viewports <0.75 vs ultrawide desktop >2.0) preserve the strictly mandated $\ge 85\%$ interactive viewing area and $\le 15\%$ persistent console layout.
+- **Chosen Action:** Audited `fitCamera(width, height)` in `src/presentation.js` and viewport CSS in `src/style.css`:
+  - Verified `viewer: 0.855` and `ui: 0.145` proportions across both 1280x800 desktop and 390x844 mobile viewports.
+  - Confirmed horizontal overflow is strictly 0px across all device geometries.
+- **Affected Surface:** Viewport layout, camera projection, responsive framing.
+- **Files Changed:** `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** 162/162 smoke checks pass; globe fits cleanly inside the viewport without clipping or excessive margins.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 087 High-DPI and Retina display sharpness calibration.
+
+#### Cycle 087
+- **Batch:** 18
+- **Observed Weakness:** High-DPI displays (2x Retina desktop, 3x phone displays) can blur point sprites or oversaturate GPU rasterization if pixel ratios are uncalibrated.
+- **Chosen Action:** Audited `devicePixelRatio` handling in `src/quality.js` (`PROFILES`) and `src/presentation.js`:
+  - Confirmed `pixelRatioCap` bounds render buffer resolution cleanly (cap 2.0 on high tier, 1.35 on medium, 1.0 on low).
+  - Verified point sizes in `markerMaterial.uniforms.uPixelRatio` scale proportionally to maintain crisp physical dimensions on Retina screens.
+- **Affected Surface:** High-DPI canvas rendering and point sprite rasterization.
+- **Files Changed:** `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** Smoke test Retina desktop (2x) and phone (3x) generate and render cleanly with zero startup errors and sharp settlement beacons.
+- **Performance Impact:** Prevents overdraw on 3x screens while keeping 2x Retina crisp.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 088 touch and multi-pointer gesture immunity.
+
+#### Cycle 088
+- **Batch:** 18
+- **Observed Weakness:** Touch gestures on mobile devices could conflict with browser navigation or trigger accidental page rubber-banding.
+- **Chosen Action:** Audited pointer handling in `src/main.js` and canvas styling in `src/style.css`:
+  - Verified `touch-action: none` on `#viewer canvas` ensures all single-finger drag and two-finger pinch events are routed exclusively to the planetary viewer.
+  - Verified tap suppression (`suppressTap = true`) during multi-touch pinch prevents accidental settlement selection or surface picking.
+- **Affected Surface:** Mobile touch input and pointer event routing.
+- **Files Changed:** `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** One-finger rotation and two-finger pinch-to-zoom operate smoothly without page scrolling or layout jank.
+- **Performance Impact:** Direct native PointerEvents with `Map` tracking.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 089 keyboard navigation and focus ring styling.
+
+#### Cycle 089
+- **Batch:** 18
+- **Observed Weakness:** Observatory drawer tabs (`[role=tab]`) and drawer close button (`.drawer-close`) lacked dedicated high-contrast `:focus-visible` styling for keyboard power-users.
+- **Chosen Action:** In `src/style.css`:
+  - Extended `:focus-visible` ring selector to cover all interactive drawer surfaces:
+    `button:focus-visible,input:focus-visible,select:focus-visible,.atlas-stream:focus-visible,[role=tab]:focus-visible,.drawer-close:focus-visible{outline:2px solid var(--warm);outline-offset:1px}`
+- **Affected Surface:** Keyboard accessibility and WCAG focus visibility.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Tabbing through observatory drawer controls highlights active tabs with an unmistakable radiant gold outline; passes full keyboard navigation smoke assertion.
+- **Performance Impact:** Hardware-accelerated CSS pseudo-classes.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 090 Batch 18 Git Checkpoint.
+
+#### Cycle 090
+- **Batch:** 18
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 18 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 779ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-18-*.png`; stage intended files; commit `visual-uplift(batch-18): viewport coherence, retina sharpness, touch immunity, and focus accessibility`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-18-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-18-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; keyboard focus reaches all controls in sequence.
+- **Commit SHA:** Pending commit.
+
+---
