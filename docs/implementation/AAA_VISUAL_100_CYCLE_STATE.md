@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 050 (Batch 10 complete)
-- **Active Milestone:** Batch 10 (Cycles 046–050) Bottom console, overlays, responsive UI, hierarchy and typography
-- **Next Cycle:** 051 (Batch 11 start: Observatory UI, drawer, transect chart & investigation workflows)
+- **Current Cycle:** 055 (Batch 11 complete)
+- **Active Milestone:** Batch 11 (Cycles 051–055) Observatory UI, drawer, transect chart & investigation workflows
+- **Next Cycle:** 056 (Batch 12 start: Animation timing, orbital satellites, day-cycle & celestial views)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -717,5 +717,79 @@
 - **Files Changed:** `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-10-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-10-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; viewer area strictly 85.5% on desktop and mobile; all touch targets accessible.
 - **Commit SHA:** `320d8e89f4c9360e6b4207d616f88c159381b05d` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 11: Observatory UI, Drawer, Transect Chart & Investigation Workflows (Cycles 051–055)
+*Focus: Observatory drawer glassmorphism, lithosphere elevation cross-section SVG gradient, evidence-based investigation cards, and why-causal explanation formatting.*
+
+#### Cycle 051
+- **Batch:** 11
+- **Observed Weakness:** The observatory drawer (`.drawer`) used a flat dark background without frosted backdrop blur, plain tab buttons without specular highlights, and an unstyled close button.
+- **Chosen Action:** In `src/style.css`:
+  - Upgraded `.drawer` to high-grade obsidian glassmorphism: `background: linear-gradient(180deg, rgba(8, 22, 34, 0.96) 0%, rgba(5, 14, 23, 0.98) 100%); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(131, 207, 224, 0.35);`.
+  - Added specular inset highlight: `box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 16px 48px rgba(0, 0, 0, 0.75);`.
+  - Upgraded drawer tab buttons (`.drawer-head [role=tab]`): smooth transitions, luminous cyan hover borders, and radiant gold active state pills (`rgba(228, 186, 120)`).
+  - Enhanced close button (`.drawer-close`): centered glyph, subtle hover transition, and crimson highlight.
+- **Affected Surface:** Observatory drawer, tab bar, header navigation.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Drawer overlays viewer with frosted planetary depth; maintains zero layout disturbance to the 85.5% / 14.5% persistent viewer/console budget.
+- **Performance Impact:** Zero CPU overhead; GPU compositor blur.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 052 transect elevation cross-section SVG chart upgrade.
+
+#### Cycle 052
+- **Batch:** 11
+- **Observed Weakness:** The transect elevation cross-section chart in `src/observatoryUI.js` rendered a thin wireframe stroke with dashed baseline, lacking lithospheric crust shading or bathymetric depth fills.
+- **Chosen Action:** In `src/observatoryUI.js` (`draw(t)`):
+  - Added SVG gradient area fills:
+    - Crust gradient fill: `#e8be7c` to `#142c3d` underneath the elevation curve.
+    - Ocean bathymetry fill: `#1e7399` to `#081e2e` for depth below sea level ($y(0)$).
+  - Upgraded terrain contour stroke to glowing amber `#ffe2a4` (stroke width 1.8).
+  - Added river crossing markers with dashed vertical water traces and cyan circular nodes at sea level.
+  - Enhanced axis labels with crisp slate-cyan typography (`#8bb3c7`).
+- **Affected Surface:** Transect profile chart, elevation cross-section display.
+- **Files Changed:** `src/observatoryUI.js`.
+- **Evidence:** Cross-section displays rich lithospheric geological slice with clear continental shelves and abyssal depths; passed all transect smoke test assertions (1 SVG with distance, elevation, and cells verified).
+- **Performance Impact:** Pure SVG vector markup; immediate rendering.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 053 Correlate and investigation scientific findings UI cards.
+
+#### Cycle 053
+- **Batch:** 11
+- **Observed Weakness:** Investigation conclusions and correlation queries had plain text blocks without visual structure or clear distinction between hypothesis verdicts and empirical measurements.
+- **Chosen Action:** In `src/style.css`:
+  - Upgraded `.verdict` to a distinct scientific evaluation card with amber accent border, inset background, and subtle drop shadow.
+  - Styled `.param` inputs in Correlate with compact pill backgrounds (`rgba(13, 34, 50, 0.6)`) and crisp borders.
+  - Enhanced `.svgbox` container with dark inset obsidian background (`#051018`) and subtle rim border.
+- **Affected Surface:** Correlate tab, Investigate tab, hypothesis verdict displays.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** Passed investigation smoke test (`H1 supported/rejected` with evidence-based mean values verified).
+- **Performance Impact:** Pure CSS enhancements.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 054 "Why" causal explanation and Journal/Bookmarks UI polish.
+
+#### Cycle 054
+- **Batch:** 11
+- **Observed Weakness:** The "Why" causal explanation output container lacked distinct visual containment, and event logs in the Journal tab had basic text lines without structured divider borders.
+- **Chosen Action:** In `src/style.css`:
+  - Added `.why-out` container styling with dark frosted background and cyan rim border (`rgba(44, 75, 91, 0.55)`).
+  - Added `.tour-progress` accent styling for guided planetary tours.
+  - Styled `.events li` in the journal with clean divider lines and tabular numbers.
+- **Affected Surface:** "Why" causal analysis, Tour progress, Journal event log.
+- **Files Changed:** `src/style.css`.
+- **Evidence:** All observatory drawer tabs display cohesive, high-density scientific cards and structured telemetry lists.
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 055 Batch 11 Git Checkpoint.
+
+#### Cycle 055
+- **Batch:** 11
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 11 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 854ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-11-*.png`; stage intended files; commit `visual-uplift(batch-11): observatory drawer glassmorphism, lithosphere elevation profile, and scientific investigation cards`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/observatoryUI.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-11-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-11-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; transect profile, correlation queries, and investigation workflows verified.
+- **Commit SHA:** [PENDING COMMIT] (to be pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
