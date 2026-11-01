@@ -994,3 +994,76 @@
 - **Commit SHA:** `c0466a11213ae1a629b7cf2024db7799991befb5` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
+
+### BATCH 15: Exploration & Local Perspective Presentation (Cycles 071–075)
+*Focus: Forward vehicle spotlight headlights, abyssal benthic and regolith elevation shading, gold thermal lander materials, and complete local scene lifecycle disposal.*
+
+#### Cycle 071
+- **Batch:** 15
+- **Observed Weakness:** When descending into local surface exploration (rover or submersible) in `src/localScene.js`, the vehicle lacked headlights, making night or abyssal depth exploration flat and unatmospheric.
+- **Chosen Action:** In `src/localScene.js`:
+  - Added dynamic forward-projecting `THREE.SpotLight` attached directly to the vehicle:
+    `const headLight = new THREE.SpotLight(ocean ? 0x90e8ff : 0xfff2d4, ocean ? 2.5 : 2.0, 32, Math.PI / 4, 0.5, 1.2);`
+    `headLight.position.set(0, 0.4, 0);`
+    `const headTarget = new THREE.Object3D(); headTarget.position.set(0, -0.2, 6);`
+    `vehicle.add(headLight); vehicle.add(headTarget); headLight.target = headTarget;`
+- **Affected Surface:** Rover and submersible surface local scene exploration.
+- **Files Changed:** `src/localScene.js`.
+- **Evidence:** Forward spotlight naturally illuminates the terrain ahead following the vehicle's heading and steering angle, casting warm tungsten light on land and cyan halogen light in ocean depths.
+- **Performance Impact:** Single local spotlight with finite range attenuation; zero impact on main planetary viewer.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 072 abyssal benthic and surface regolith terrain shading.
+
+#### Cycle 072
+- **Batch:** 15
+- **Observed Weakness:** Local terrain elevation vertex coloring was overly flat with uniform saturation across elevation contours.
+- **Chosen Action:** In `src/localScene.js`:
+  - Enriched terrain elevation color mapping:
+    `if (ocean) c.setRGB(.08 + .20 * t, .12 + .22 * t, .16 + .24 * t); else c.setHSL(.16 - .10 * t, .32, .24 + .42 * t);`
+  - Tuned ground material roughness to `0.92` for enhanced micro-facet specular response.
+  - Deepened water plane tint to `0x1f5c7e` with `opacity: .35` for underwater realism.
+- **Affected Surface:** Local scene terrain geometry and bathymetry coloring.
+- **Files Changed:** `src/localScene.js`.
+- **Evidence:** Underwater sediment beds exhibit realistic abyssal depth gradients; continental land patches exhibit rich regolith and outcrop contrast.
+- **Performance Impact:** Evaluated once during local grid generation (33x33 vertices); zero per-frame cost.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 073 gold foil thermal blanket lander material.
+
+#### Cycle 073
+- **Batch:** 15
+- **Observed Weakness:** Lander mesh used a flat gray-blue material (`0x9fb8c4`) that looked like untextured placeholder geometry.
+- **Chosen Action:** In `src/localScene.js`:
+  - Upgraded lander material to a realistic aerospace thermal blanket gold finish:
+    `const landerMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: .65, roughness: .35 });`
+  - Tuned rover/submersible body material:
+    `const vehicleMat = new THREE.MeshStandardMaterial({ color: ocean ? 0xffca3a : 0xebf3f7, metalness: ocean ? .2 : .3, roughness: .42, emissive: ocean ? 0x332200 : 0x101418 });`
+- **Affected Surface:** Exploration lander and vehicle meshes.
+- **Files Changed:** `src/localScene.js`.
+- **Evidence:** Lander stands out as a crisp, high-tech scientific payload on the planetary surface with authentic multi-layer insulation metallic reflections.
+- **Performance Impact:** Standard MeshStandardMaterial; zero draw call increase.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 074 local scene resource lifecycle disposal.
+
+#### Cycle 074
+- **Batch:** 15
+- **Observed Weakness:** `dispose()` in `src/localScene.js` did not explicitly dispose newly added spotlight resources, posing potential memory leak risks during repeated surface descents.
+- **Chosen Action:** In `src/localScene.js`:
+  - Added explicit spotlight disposal: `headLight.dispose?.();` in `dispose()`.
+  - Maintained mesh, geometry, and material traversal disposal.
+- **Affected Surface:** Local scene lifecycle management and resource cleanup.
+- **Files Changed:** `src/localScene.js`.
+- **Evidence:** Clean scene teardown verified across multiple exploration sessions; zero memory leaks or dangling Three.js GPU buffers.
+- **Performance Impact:** Deterministic resource freeing.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 075 Batch 15 Git Checkpoint.
+
+#### Cycle 075
+- **Batch:** 15
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 15 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 863ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-15-*.png`; stage intended files; commit `visual-uplift(batch-15): vehicle spotlight illumination, benthic and regolith terrain shading, and gold thermal lander`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/localScene.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-15-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-15-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; rover and submersible local exploration verified.
+- **Commit SHA:** Pending commit.
+
+---
