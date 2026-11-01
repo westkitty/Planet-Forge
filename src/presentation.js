@@ -125,13 +125,20 @@ if (ocean == 0.0 && uNatural > 0.5) {
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 0.69, 0.66), steepness * 0.35);
 } else if (ocean > 0.0 && uNatural > 0.5) {
   float shallowRim = clamp(1.0 - vOcean * 3.8, 0.0, 1.0);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.14, 0.42, 0.50), shallowRim * 0.32);
+  float tropical = clamp(1.0 - abs(vLocalDir.y) * 2.2, 0.0, 1.0);
+  vec3 lagoonColor = mix(vec3(0.12, 0.44, 0.54), vec3(0.06, 0.62, 0.66), tropical);
+  diffuseColor.rgb = mix(diffuseColor.rgb, lagoonColor, shallowRim * 0.42);
   float abyssalTrench = clamp(-vElev * 15.0 - 0.2, 0.0, 1.0);
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.72, abyssalTrench * 0.35);
+  float surf = smoothstep(0.07, 0.005, vOcean);
+  if (surf > 0.0) {
+    float wavePulse = 0.65 + 0.35 * sin(uTime * 1.6 + vLocalDir.x * 90.0 + vLocalDir.z * 70.0);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.94, 0.97), surf * 0.32 * wavePulse);
+  }
 }`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 if (ocean > 0.0) {
-  roughnessFactor = 0.12 + 0.14 * (1.0 - vOcean);
+  roughnessFactor = 0.07 + 0.11 * (1.0 - vOcean);
 } else if (uNatural > 0.5) {
   roughnessFactor = mix(0.88, 0.98, clamp(slope * 6.0 + vElev * 12.0, 0.0, 1.0));
 }`)
@@ -151,6 +158,11 @@ if (ocean * uSwell > 0.0) {
         .replace('#include <aomap_fragment>', `if (uCloudShadow > 0.0) {
   float cloudShade = 1.0 - 0.5 * cloudCover(normalize(vLocalDir + uSunLocal * 0.015));
   reflectedLight.directDiffuse *= cloudShade; reflectedLight.directSpecular *= cloudShade;
+}
+if (ocean > 0.0 && uNatural > 0.5) {
+  float fresnel = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 4.0);
+  reflectedLight.directSpecular *= 1.35;
+  reflectedLight.indirectDiffuse += vec3(0.18, 0.42, 0.72) * fresnel * 0.40;
 }
 #include <aomap_fragment>`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>

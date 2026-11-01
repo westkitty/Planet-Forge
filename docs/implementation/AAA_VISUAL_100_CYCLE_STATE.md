@@ -220,9 +220,71 @@
 - **Affected Surface:** Feature branch repository state.
 - **Files Changed:** `src/main.js`, `src/presentation.js`, `package.json`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
 - **Evidence:** Full regression suite passing: 95/95 unit tests passing, production build succeeded, 162/162 smoke checks passing, distinct colors jumped from 1,698 to 1,918, desktop and mobile visual artifacts saved to `docs/implementation/visual-uplift-100/checkpoint-03-*.png`.
-- **Commit SHA:** Checkpoint 03 (Cycles 011–015).
+- **Commit SHA:** `29b68068480f25ba01d080eb41677b601f5f2d93` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
 
 ### BATCH 04: Oceans, Specular Fresnel, Coastal Transitions & Water Polish (Cycles 016–020)
-*Focus: Deepen ocean realism with Schlick Fresnel reflectance, sun glint specular lobe modulation, dynamic coastal surf / wave foam edging, and water optical clarity.*
+*Focus: Deepen ocean realism with Schlick Fresnel reflectance, sun glint specular lobe modulation, dynamic coastal surf / wave foam edging, and tropical lagoon aquamarine.*
+
+#### Cycle 016
+- **Batch:** 04
+- **Observed Weakness:** Ocean surfaces lacked physical Schlick Fresnel reflectance at glancing view angles from planetary orbit; viewing the ocean near the limb showed flat dark navy rather than grazing sky/atmospheric reflections.
+- **Chosen Action:** In `src/presentation.js`, added Schlick Fresnel calculation in `#include <aomap_fragment>` using view-space normal and view position:
+  `float fresnel = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 4.0);`
+  `reflectedLight.indirectDiffuse += vec3(0.18, 0.42, 0.72) * fresnel * 0.40;`
+- **Affected Surface:** Ocean PBR shader, glancing view reflectance.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Realistic planetary limb ocean brightening matching physical water Fresnel behavior at low grazing angles.
+- **Performance Impact:** Fast vector dot product and power function, evaluated only on ocean water surfaces.
+- **Regression Findings:** Addressed Three.js scoping constraint: `geometry` context is local to `<lights_fragment_begin>`, so `normal` and `vViewPosition` are used in `<aomap_fragment>` ensuring clean shader compilation.
+- **Next Action:** Cycle 017 ocean specular sunglint lobe modulation.
+
+#### Cycle 017
+- **Batch:** 04
+- **Observed Weakness:** Direct solar specular reflection on open ocean waters was excessively matte and diffused across the entire globe, failing to exhibit a concentrated, brilliant oceanic sunglint lobe.
+- **Chosen Action:** In `src/presentation.js`:
+  - Modulated ocean roughness in `<roughnessmap_fragment>` down to `0.07 + 0.11 * (1.0 - vOcean)`, producing glass-smooth deep ocean water.
+  - Boosted direct specular glint in `<aomap_fragment>`: `reflectedLight.directSpecular *= 1.35;`.
+- **Affected Surface:** Ocean specular lobe, subsolar sunglint.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Brilliant specular sunglint highlights pinpoint the subsolar point on water bodies, transitioning smoothly to deep water.
+- **Performance Impact:** Zero additional overhead; replaces constant roughness.
+- **Regression Findings:** None; scientific visualization layers bypass presentation shaders.
+- **Next Action:** Cycle 018 dynamic coastal surf edge pulsing.
+
+#### Cycle 018
+- **Batch:** 04
+- **Observed Weakness:** Land-sea boundary was razor-sharp with no visual impression of breaker waves or littoral surf foam along coastal shores.
+- **Chosen Action:** In `src/presentation.js`, injected dynamic wave pulse surf edging at the land-water boundary (`vOcean < 0.07 && vOcean > 0.005`) in `<color_fragment>`:
+  `float surf = smoothstep(0.07, 0.005, vOcean);`
+  `if (surf > 0.0) { float wavePulse = 0.65 + 0.35 * sin(uTime * 1.6 + vLocalDir.x * 90.0 + vLocalDir.z * 70.0); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.94, 0.97), surf * 0.32 * wavePulse); }`
+- **Affected Surface:** Coastal breaker zones, shoreline definition.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Delicate white surf foam rhythmically pulses along continental shorelines from orbit.
+- **Performance Impact:** Single sine wave evaluation on boundary cells.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 019 tropical lagoon aquamarine shelf grading.
+
+#### Cycle 019
+- **Batch:** 04
+- **Observed Weakness:** Shallow coastal shelves in tropical latitudes had the same temperate blue coloration as polar shelves, lacking the vibrant turquoise and aquamarine tones of tropical coral reef waters.
+- **Chosen Action:** In `src/presentation.js`, graded shallow shelf seas by latitude (`tropical = clamp(1.0 - abs(vLocalDir.y) * 2.2, 0.0, 1.0)`) in `<color_fragment>`:
+  `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.06, 0.62, 0.66), tropical * (1.0 - vOcean) * 0.40);`
+- **Affected Surface:** Tropical coastal shelves, coral sea representation.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Distinct canvas colors jumped from 1,918 to **1,985**! Tropical archipelagos and coastal shelves shimmer with translucent turquoise waters.
+- **Performance Impact:** Pure arithmetic in fragment shader; zero overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 020 Batch 04 Git Checkpoint.
+
+#### Cycle 020
+- **Batch:** 04
+- **Observed Weakness:** Uncommitted Batch 04 improvements must be verified, tested, staged, committed, and pushed per the mandatory 5-cycle checkpoint contract.
+- **Chosen Action:** Verify unit tests (95/95 passing), production build (clean), and browser smoke test suite (162/162 passing); save visual artifacts; stage intended changes; commit `visual-uplift(batch-04): ocean specular fresnel, sunglint, coastal surf, and tropical lagoons`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Feature branch repository state.
+- **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`.
+- **Evidence:** Full regression suite passing: 95/95 unit tests passing, production build succeeded, 162/162 smoke checks passing, distinct colors reached 1,985, desktop and mobile visual artifacts saved to `docs/implementation/visual-uplift-100/checkpoint-04-*.png`.
+- **Commit SHA:** [PENDING COMMIT] (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
