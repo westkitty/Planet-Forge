@@ -131,3 +131,10 @@ Append-only. Each hourly cycle adds a dated entry; failures are recorded, not re
 - Updated `docs/implementation/PF_MASTER_PROGRESS.md` to 33/33 LIVE_VERIFIED with exact release receipts and wrote `PF_COMPLETION_REPORT.md` distinguishing release proof from remaining QA. Also replaced obsolete prototype README and added a durable project-bible contract.
 - Remaining known uncertainties (issue #8): real hardware/GPU performance, reported one-run mobile heap increase, independent human playtesting, and deliberately unmodeled physical systems. These do not contradict the 33-feature release but prevent an unsupported unconditional AAA-quality claim.
 - This documentation-only closure does not alter scientific algorithms or rendered application. The hourly autonomous development executor stays paused.
+
+## 2026-11-01 13:50 ET — Floating glassmorphic dock UI & 4-edge snapping release
+
+- Implementation: `src/dockUI.js`, `src/style.css`, `index.html`, `src/main.js`.
+- Features: glassmorphic HUD dock, drag repositioning with pointer capture, proximity snapping to Top, Bottom, Left, and Right edges ($54\text{px}$ threshold), dynamic orientation switching (horizontal on Top/Bottom; vertical on Left/Right), orientation toggle button, full-screen button with `F` shortcut, and `localStorage` persistence.
+- Verification: 95/95 unit tests pass; 162/162 browser smoke checks pass across desktop and mobile; all 9 gates in `scripts/test-dock.mjs` pass.
+- Repository: merged to `main` (`c66444d`), pushed to `origin/main`, deployment workflow triggered on GitHub Pages.

@@ -150,3 +150,17 @@ Verified locally on the agent box (Node 24.22.1 / npm 11.19.1; CI uses Node 22),
 - The user-visible app remains a single Three.js WebGL world with 100,002 scientific cells, `glacial-0.8`, existing layers/exports, an 85.5% planetary viewport and 14.5% persistent interface. The 33 PF features run as integrated, bounded gameplay/observatory/celestial/exploration modules; their model approximations remain explicitly disclosed.
 - **Not promoted to verified:** human playtesting/AAA quality, real-device GPU FPS and thermal behavior, and the reported intermittent ~107 MB mobile JS-heap excursion. Prior executor reported software-rendering regression of +20% (low) to +40% (high) versus initial baseline; final raw comparison is not committed and is therefore not independently reproduced. These items are tracked in [issue #8](https://github.com/westkitty/Planet-Forge/issues/8).
 - Full source-grounded release record: `docs/implementation/PF_COMPLETION_REPORT.md`; exact per-package evidence: `docs/implementation/PF_MASTER_PROGRESS.md`. The hourly autonomous development executor remains PAUSED; authorized one-off releases did not turn it back on.
+
+## 2026-11-01 13:50 ET — Floating Glassmorphic UI Dock & Edge Snapping (append-only)
+
+- User-directed feature addition: transformed persistent console into a floating, partially transparent glassmorphic UI dock with 4-edge proximity snapping, dynamic orientation switching, full-screen toggle, and drag repositioning.
+- Implementation:
+  - `src/dockUI.js`: Pointer capture drag controller, edge proximity snapping ($54\text{px}$ threshold) on top, bottom, left, right edges; automatic orientation adjustment (horizontal on top/bottom; vertical on left/right with $330\text{px}$ width); manual orientation toggle button (`#dock-orient-btn`); full-screen button (`#fullscreen-btn` and `F` key); coordinate clamping inside viewport; persistence in `localStorage` (`pf_ui_dock`).
+  - `src/style.css`: Glassmorphic styling (`backdrop-filter: blur(20px) saturate(180%)`, specular border `rgba(131,207,224,0.36)`, multi-stop gradient); snap edge guide indicators; flush bottom dock styling without canvas overlap; expanded edge-to-edge canvas (`inset: 0`) in floating and edge-docked states.
+  - `scripts/test-dock.mjs`: Automated Playwright test verifying 9 critical gates (glassmorphism styles, initial state, fullscreen toggle, free floating drag, left snap vertical, top snap horizontal, right snap vertical, bottom snap horizontal, manual orientation toggle).
+- Verification:
+  - All 95 unit tests pass (`npm test`).
+  - All 162 browser smoke checks pass (`npm run smoke`) across desktop and mobile viewports; determinism exact (`changed fraction=0.0000`).
+  - Viewport budgets strictly preserved in default bottom-dock mode ($0.855$ viewer / $0.145$ console).
+  - Production build clean in 842ms; `git diff --check` clean.
+- Merged to `main` (`c66444d`), pushed to `origin/main`. Deployed to GitHub Pages via Actions run `41338629616`.
