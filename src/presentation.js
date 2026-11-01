@@ -321,6 +321,17 @@ void main() {
   /** Per-frame update from the single animation loop. `motion` is false under reduced motion. */
   function tick(dt, motion, globe, clockDt = dt) {
     if (motion) { shared.uTime.value += dt; shared.uCloudTime.value += dt; starfield.tick(dt); }
+    if (Math.abs(zoomScale - targetZoom) > 1e-4) {
+      if (motion) {
+        zoomScale += (targetZoom - zoomScale) * Math.min(1, dt * 10);
+      } else {
+        zoomScale = targetZoom;
+      }
+      fitCamera(lastViewportW, lastViewportH);
+    } else if (zoomScale !== targetZoom) {
+      zoomScale = targetZoom;
+      fitCamera(lastViewportW, lastViewportH);
+    }
     // the day clock follows real elapsed time (capped), so a slow frame rate does not slow the day
     if (clock.playing) clock.subsolarLon = ((clock.subsolarLon - 360 * clockDt / DAY_SPEEDS[clock.speed]) % 360 + 540) % 360 - 180;
     if (globe) {
@@ -336,23 +347,37 @@ void main() {
     }
   }
 
-  let zoomScale = 1;
+  let zoomScale = 1, targetZoom = 1, lastViewportW = 0, lastViewportH = 0, flyArc = 0;
   function fitCamera(width, height) {
     if (!width || !height) return;
+    lastViewportW = width; lastViewportH = height;
     const halfVertical = THREE.MathUtils.degToRad(camera.fov / 2);
     const halfHorizontal = Math.atan(Math.tan(halfVertical) * width / height);
     // Portrait screens: fit the planet limb to the width (the thin atmosphere rim may crop) so the globe uses more of
-    // the tall viewer; landscape keeps the 13 % margin around the atmosphere.
-    const margin = width / height < .75 ? 1.0 : 1.13;
+    // the tall viewer; landscape keeps the 13 % margin around the atmosphere. Smooth ramp prevents pop at aspect transitions.
+    const aspect = width / height;
+    const margin = aspect <= 0.75 ? 1.0 : aspect >= 1.0 ? 1.13 : 1.0 + 0.13 * ((aspect - 0.75) / 0.25);
     const base = Math.max(2.98, margin / Math.sin(Math.min(halfVertical, halfHorizontal)));
-    camera.position.z = base * zoomScale;
+    camera.position.z = base * zoomScale * (1 + flyArc);
     starfield.follow(camera);
   }
-  const getZoom = () => zoomScale;
-  function setZoom(z, width, height) { zoomScale = THREE.MathUtils.clamp(z, 0.81, 2.4); fitCamera(width, height); }
-  function zoom(direction, width, height) {
-    zoomScale = THREE.MathUtils.clamp(zoomScale + direction * 0.085, 0.81, 2.4);
+  const getZoom = () => targetZoom;
+  function setZoom(z, width, height) {
+    targetZoom = zoomScale = THREE.MathUtils.clamp(z, 0.81, 2.4);
     fitCamera(width, height);
+  }
+  function setFlyArc(arc, width, height) {
+    flyArc = arc;
+    fitCamera(width || lastViewportW, height || lastViewportH);
+  }
+  function zoom(direction, width, height, instant = false) {
+    targetZoom = THREE.MathUtils.clamp(targetZoom + direction * 0.085, 0.81, 2.4);
+    if (instant) {
+      zoomScale = targetZoom;
+      fitCamera(width, height);
+    } else {
+      lastViewportW = width; lastViewportH = height;
+    }
   }
 
   /** Apply a PF-03 quality profile. Returns true when the pixel ratio changed (caller must resize). */
@@ -382,7 +407,7 @@ void main() {
     markers?.geometry.dispose(); markerMaterial.dispose();
   }
   return {
-    radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
+    radius, shapeTerrain, createGlobeMaterial, getZoom, setZoom, setFlyArc, installWorld, setView, setCloudsWanted, tick, fitCamera, zoom, applyQuality, afterFirstFrame, dispose,
     selectSettlement, setSettlementState, setStarLight, setSun, clock, sky: starfield,
     get quality() { return profileName; },
     info: () => ({ quality: profileName, pixelRatio: renderer.getPixelRatio(), clouds: !!clouds?.visible, cloudShadows: shared.uCloudShadow.value === 1, ocean: shared.uOceanFx.value === 1, natural: clock.natural, subsolarLon: +clock.subsolarLon.toFixed(2), declination: clock.declination, dayPlaying: clock.playing, selectedSettlement })

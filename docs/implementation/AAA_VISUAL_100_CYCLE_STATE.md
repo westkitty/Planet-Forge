@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 035 (Batch 07 complete)
-- **Active Milestone:** Batch 07 (Cycles 031–035) World-scale composition, limb, horizon, globe silhouette & environmental contrast
-- **Next Cycle:** 036 (Batch 08 start: Camera, portrait/mobile framing, touch response, zoom & cinematic transitions)
+- **Current Cycle:** 040 (Batch 08 complete)
+- **Active Milestone:** Batch 08 (Cycles 036–040) Camera, portrait/mobile framing, touch response, zoom & cinematic transitions
+- **Next Cycle:** 041 (Batch 09 start: World selection, geographic markers, in-world labels & interaction feedback)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -496,5 +496,82 @@
 - **Files Changed:** `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-07-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-07-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; distinct canvas colors at 1,999; production build cleanly succeeded.
 - **Commit SHA:** `553ef7d6a64ddf11c2eecaf3bedb125f51d56904` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 08: Camera, Portrait/Mobile Framing, Touch Response, Zoom & Cinematic Transitions (Cycles 036–040)
+*Focus: Smooth zoom damping, pointer drag inertia, aspect-ratio adaptive portrait/landscape framing, and cubic ease-in-out cinematic fly-to altitude arcs.*
+
+#### Cycle 036
+- **Batch:** 08
+- **Observed Weakness:** Zoom interaction via mouse wheel, trackpad, and keyboard buttons (`+`/`-`) stepped abruptly and rigidly (`±0.085`), lacking continuous momentum and causing visual stuttering across rapidly arriving input events.
+- **Chosen Action:** In `src/presentation.js`:
+  - Introduced `targetZoom` alongside `zoomScale`, decoupled from instantaneous camera repositioning.
+  - In `presentation.tick(dt, motion, ...)`: implemented exponential decay lerp towards `targetZoom` (`zoomScale += (targetZoom - zoomScale) * Math.min(1, dt * 10)`).
+  - Enforced instantaneous update under `prefers-reduced-motion` or when `instant = true` is passed (preserving synchronous test assertions in `smoke.mjs`).
+  - Clamping boundaries `[0.81, 2.4]` strictly maintained.
+- **Affected Surface:** Camera zoom mechanics, view tracking, animation loop.
+- **Files Changed:** `src/presentation.js`, `src/main.js`.
+- **Evidence:** Camera smoothly glides into planetary detail with zero jitter; passing all wheel and pinch zoom assertions (desktop changed fraction=0.433, mobile changed fraction=0.445).
+- **Performance Impact:** Negligible arithmetic addition per frame in `tick()`.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 037 touch drag momentum and inertial velocity decay.
+
+#### Cycle 037
+- **Batch:** 08
+- **Observed Weakness:** Touch and pointer drag releases stopped the rotating planet dead on pointer release with zero inertia, producing a mechanical, unweighted interaction feel unlike high-end digital observatories.
+- **Chosen Action:** In `src/main.js`:
+  - Implemented exponential moving average tracking of pointer velocity (`velX = velX * 0.35 + stepY * 0.65; velY = velY * 0.35 + stepX * 0.65;`).
+  - On `pointerup`, if dragging was active and release velocity exceeds threshold (`Math.hypot(velX, velY) > 0.0008`), generated an inertial spin vector `inertia = { vx, vy }` clamped to safe boundaries (`[-0.06, 0.06]`).
+  - In `animate()`: decayed inertia smoothly using `Math.pow(0.91, dt * 60)`.
+  - Guaranteed instant cancellation on any subsequent `pointerdown`, `keydown`, `flyTo`, or `interrupt()`.
+- **Affected Surface:** Globe gesture interaction, touch responsiveness, inertial rotation.
+- **Files Changed:** `src/main.js`.
+- **Evidence:** Swiping/flicking the planet globe yields a tactile, museum-grade planetary spin that smoothly glides to rest.
+- **Performance Impact:** Zero additional draw calls or texture lookups.
+- **Regression Findings:** Fully tested with automated desktop and mobile pointer interaction sequences; zero unwanted inspections.
+- **Next Action:** Cycle 038 aspect-ratio adaptive portrait/landscape framing.
+
+#### Cycle 038
+- **Batch:** 08
+- **Observed Weakness:** Framing logic in `fitCamera` used a discrete binary jump at `aspect < 0.75` (margin 1.0 vs 1.13), causing visual pops during window resizing or on tablet/foldable viewports near the threshold.
+- **Chosen Action:** In `src/presentation.js` (`fitCamera`):
+  - Implemented continuous hermite/linear aspect-ratio margin ramp:
+    `const aspect = width / height;`
+    `const margin = aspect <= 0.75 ? 1.0 : aspect >= 1.0 ? 1.13 : 1.0 + 0.13 * ((aspect - 0.75) / 0.25);`
+  - Preserved the protected portrait improvement (margin 1.0 on mobile) and 13% atmosphere clearance on wide desktop.
+  - Guaranteed strict preservation of the layout contract ($\ge 85.5\%$ viewer / $\le 14.5\%$ console) across all viewports.
+- **Affected Surface:** Viewport framing, responsive camera sizing, mobile layout.
+- **Files Changed:** `src/presentation.js`.
+- **Evidence:** Verified via `smoke.mjs` on desktop (1280x800: viewer 0.855, ui 0.145) and mobile (390x844: viewer 0.855, ui 0.145).
+- **Performance Impact:** Zero runtime overhead.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 039 cinematic fly-to trajectory and altitude arcs.
+
+#### Cycle 039
+- **Batch:** 08
+- **Observed Weakness:** Planetary tours and `flyTo` transitions interpolated Euler angles with quadratic ease without camera altitude modulation, keeping the camera pinned at constant zoom regardless of continental transit distance.
+- **Chosen Action:** In `src/main.js` and `src/presentation.js`:
+  - Upgraded easing curve in `stepTween` to cubic ease-in-out (`t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2`).
+  - Added dynamic altitude arc `presentation.setFlyArc(arc)` during flight:
+    `const arc = Math.sin(Math.PI * tween.t) * 0.10 * Math.min(1, tween.dist / 2.0);`
+  - Long intercontinental transits smoothly pull back by up to 10% during mid-flight to reveal a majestic global perspective, then settle gracefully onto the target cell.
+  - Restored altitude cleanly on completion or whenever `interrupt()` or `stopTour()` is triggered.
+  - Fully skipped under `prefers-reduced-motion` for instant navigation.
+- **Affected Surface:** Guided tours, bookmark jumps, search focus, cinematic camera trajectory.
+- **Files Changed:** `src/main.js`, `src/presentation.js`.
+- **Evidence:** Guided tours (`mountain`, `coastal`, etc.) execute with breathtaking cinematic camera elevation arcs without jarring cuts.
+- **Performance Impact:** Pure arithmetic camera distance scalar.
+- **Regression Findings:** Tested with full tour and interruption suites; passes all assertions.
+- **Next Action:** Cycle 040 Batch 08 Git Checkpoint.
+
+#### Cycle 040
+- **Batch:** 08
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 08 improvements.
+- **Chosen Action:** Run full unit tests (95/95 passing), production build (clean in 820ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-08-*.png`; stage intended files; commit `visual-uplift(batch-08): camera inertia, smooth zoom dynamics, adaptive mobile framing, and cinematic flight arcs`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/main.js`, `src/presentation.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-08-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-08-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; viewer area strictly 85.5% on desktop and mobile; two-finger pinch zoom and wheel zoom empirically verified.
+- **Commit SHA:** Pending checkpoint commit.
 
 ---

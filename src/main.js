@@ -260,6 +260,7 @@ document.querySelector('#export').addEventListener('click', () => {
   const url = URL.createObjectURL(new Blob([data], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'planet-' + planet.seed.replace(/[^a-z0-9-]/gi, '_') + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 let drag = false, lastX = 0, lastY = 0, px = 0, py = 0, lastInteraction = performance.now();
+let velX = 0, velY = 0, inertia = null;
 const canvas = renderer.domElement;
 const pointers = new Map();
 let pinchDistance = 0, suppressTap = false;
@@ -269,11 +270,13 @@ function pointerSpan() {
 }
 canvas.addEventListener('pointerdown', e => {
   interrupt();
+  inertia = null;
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   canvas.setPointerCapture(e.pointerId);
   lastInteraction = performance.now();
   if (pointers.size === 1) {
     drag = true; lastX = e.clientX; lastY = e.clientY; px = e.clientX; py = e.clientY;
+    velX = 0; velY = 0;
   } else {
     drag = false;
     suppressTap = true;
@@ -287,23 +290,32 @@ canvas.addEventListener('pointermove', e => {
   lastInteraction = performance.now();
   if (pointers.size >= 2) {
     const span = pointerSpan();
-    if (pinchDistance > 0) presentation.zoom((pinchDistance - span) / 65, root.clientWidth, root.clientHeight);
+    if (pinchDistance > 0) presentation.zoom((pinchDistance - span) / 65, root.clientWidth, root.clientHeight, true);
     pinchDistance = span;
     return;
   }
   if (!drag) return;
   const dx = e.clientX - lastX, dy = e.clientY - lastY;
-  mesh.rotation.y += dx * .006;
-  mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + dy * .006, -1.35, 1.35);
+  const stepY = dx * .006, stepX = dy * .006;
+  mesh.rotation.y += stepY;
+  mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + stepX, -1.35, 1.35);
+  velX = velX * 0.35 + stepY * 0.65;
+  velY = velY * 0.35 + stepX * 0.65;
   lastX = e.clientX; lastY = e.clientY;
 });
 canvas.addEventListener('pointerup', e => {
   const tap = pointers.size === 1 && pointers.has(e.pointerId) && !suppressTap;
   pointers.delete(e.pointerId);
   if (pointers.size === 0) suppressTap = false;
+  const wasDrag = drag;
   drag = false;
   lastInteraction = performance.now();
-  if (tap && Math.hypot(e.clientX - px, e.clientY - py) <= 7) inspectAt(e.clientX, e.clientY);
+  if (tap && Math.hypot(e.clientX - px, e.clientY - py) <= 7) {
+    inertia = null;
+    inspectAt(e.clientX, e.clientY);
+  } else if (wasDrag && motionOK() && Math.hypot(velX, velY) > 0.0008) {
+    inertia = { vx: THREE.MathUtils.clamp(velX, -0.06, 0.06), vy: THREE.MathUtils.clamp(velY, -0.04, 0.04) };
+  }
 });
 canvas.addEventListener('pointerleave', () => { hoverAt = null; overlays.setHover(-1); });
 let hoverAt = null;
@@ -311,6 +323,7 @@ canvas.addEventListener('pointercancel', e => {
   pointers.delete(e.pointerId);
   if (pointers.size === 0) suppressTap = false;
   drag = false;
+  inertia = null;
   lastInteraction = performance.now();
 });
 // PF-10: analytic surface pick in the planet frame (ray vs the displayed relief radius, then a walk over the cell mesh);
@@ -361,14 +374,23 @@ const motionOK = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;
 function flyTo(cell, duration = 1.6) {
   const to = facingRotation(cellDir(baseMesh, cell)), from = { x: mesh.rotation.x, y: mesh.rotation.y };
   to.y = from.y + (((to.y - from.y) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; // shortest way round
-  tween = { from, to, t: 0, dur: motionOK() ? duration : 0 };
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  tween = { from, to, dist, t: 0, dur: motionOK() ? duration : 0 };
 }
 function stepTween(dt) {
   if (!tween) return false;
   tween.t = tween.dur ? Math.min(1, tween.t + dt / tween.dur) : 1;
-  const e = tween.t < .5 ? 2 * tween.t * tween.t : 1 - (-2 * tween.t + 2) ** 2 / 2;
-  mesh.rotation.x = tween.from.x + (tween.to.x - tween.from.x) * e; mesh.rotation.y = tween.from.y + (tween.to.y - tween.from.y) * e;
-  if (tween.t >= 1) tween = null;
+  const e = tween.t < .5 ? 4 * tween.t * tween.t * tween.t : 1 - (-2 * tween.t + 2) ** 3 / 2;
+  mesh.rotation.x = tween.from.x + (tween.to.x - tween.from.x) * e;
+  mesh.rotation.y = tween.from.y + (tween.to.y - tween.from.y) * e;
+  if (motionOK() && tween.dur > 0 && tween.dist > 0.35) {
+    const arc = Math.sin(Math.PI * tween.t) * 0.10 * Math.min(1, tween.dist / 2.0);
+    presentation.setFlyArc(arc, root.clientWidth, root.clientHeight);
+  }
+  if (tween.t >= 1) {
+    if (tween.dur > 0) presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
   return true;
 }
 function startTour(route) {
@@ -383,10 +405,27 @@ function nextStop() {
   tourCaption.hidden = false; tourCaption.textContent = `${ROUTES[tour.route]} · ${tour.i + 1}/${tour.stops.length} — ${s.title}: ${s.text}`;
   observatory.refresh();
 }
-function stopTour(why) { if (!tour) return; tour = null; tween = null; tourCaption.hidden = true; lastTourEnd = why; observatory.refresh(); }
+function stopTour(why) {
+  if (!tour) return;
+  tour = null;
+  if (tween) {
+    presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
+  tourCaption.hidden = true;
+  lastTourEnd = why;
+  observatory.refresh();
+}
 let lastTourEnd = '';
 function stepTour(dt) { if (!tour || tween) return; tour.hold -= dt; if (tour.hold <= 0) nextStop(); }
-function interrupt() { if (tour) stopTour('interrupted'); tween = null; }
+function interrupt() {
+  if (tour) stopTour('interrupted');
+  if (tween) {
+    presentation.setFlyArc(0, root.clientWidth, root.clientHeight);
+    tween = null;
+  }
+  inertia = null;
+}
 function captureView() { return { rx: mesh.rotation.x, ry: mesh.rotation.y, zoom: presentation.getZoom(), cell: selected >= 0 ? selected : null }; }
 function restoreView(v) {
   tween = { from: { x: mesh.rotation.x, y: mesh.rotation.y }, to: { x: v.rx ?? 0, y: v.ry ?? 0 }, t: 0, dur: motionOK() ? 1.2 : 0 };
@@ -431,8 +470,8 @@ const observatory = createObservatoryUI({
 canvas.tabIndex = 0; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Planet globe. Drag to rotate; pinch, wheel, or plus and minus to zoom; Enter inspects the centre cell.');
 canvas.addEventListener('keydown', e => {
   if (local) { const m = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key]; if (m) { localMove({ dx: m[0], dy: m[1], dz: 0 }); e.preventDefault(); } else if (e.key === 'q' || e.key === 'e') { localMove({ dx: 0, dy: 0, dz: e.key === 'q' ? 200 : -200 }); e.preventDefault(); } return; }
-  if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
-canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight); }, { passive: false });
+  if (!mesh) return; const k = e.key; if (k !== 'Tab' && k !== 'Shift') interrupt(); if (k === 'ArrowLeft') mesh.rotation.y -= .12; else if (k === 'ArrowRight') mesh.rotation.y += .12; else if (k === 'ArrowUp') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x - .12, -1.35, 1.35); else if (k === 'ArrowDown') mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + .12, -1.35, 1.35); else if (k === '+' || k === '=') presentation.zoom(-1, root.clientWidth, root.clientHeight, !motionOK()); else if (k === '-' || k === '_') presentation.zoom(1, root.clientWidth, root.clientHeight, !motionOK()); else if (k === 'Enter' || k === ' ') { const r = canvas.getBoundingClientRect(); inspectAt(r.left + r.width / 2, r.top + r.height / 2); } else return; e.preventDefault(); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); interrupt(); lastInteraction = performance.now(); presentation.zoom(Math.sign(e.deltaY), root.clientWidth, root.clientHeight, !motionOK()); }, { passive: false });
 function resize() {
   const w = root.clientWidth, h = root.clientHeight;
   if (!w || !h) return;
@@ -454,7 +493,15 @@ function animate(now = performance.now()) {
   const motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   const flying = mesh && stepTween(dt);
   if (mesh) stepTour(dt);
-  if (!drag && mesh && !flying && !tour && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
+  if (inertia && mesh && !flying && !tour && motion) {
+    mesh.rotation.y += inertia.vx;
+    mesh.rotation.x = THREE.MathUtils.clamp(mesh.rotation.x + inertia.vy, -1.35, 1.35);
+    const decay = Math.pow(0.91, dt * 60);
+    inertia.vx *= decay;
+    inertia.vy *= decay;
+    if (Math.hypot(inertia.vx, inertia.vy) < 0.0001) inertia = null;
+  }
+  if (!drag && mesh && !flying && !tour && !inertia && now - lastInteraction > 1500 && motion) mesh.rotation.y += dt * .017;
   if (hoverAt && mesh && !drag) { overlays.setHover(pickAt(hoverAt[0], hoverAt[1])); hoverAt = null; }
   overlays.tick(dt, motion);
   satellites.update(motion ? dt * 120 : 0); // 2 simulated minutes per second; frozen under reduced motion
