@@ -9,9 +9,12 @@ export function createOverlays(baseMesh, radius) {
   const group = new THREE.Group(); group.name = 'pf-overlays';
   const noPick = o => { o.raycast = () => {}; return o; };
   const ringGeometry = new THREE.RingGeometry(.72, 1, 48);
+  const pipGeometry = new THREE.CircleGeometry(.18, 24);
   const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffd88f, transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide });
   const hoverMaterial = new THREE.MeshBasicMaterial({ color: 0x9ee6fc, transparent: true, opacity: .65, depthWrite: false, side: THREE.DoubleSide });
   const reticle = noPick(new THREE.Mesh(ringGeometry, reticleMaterial)), hover = noPick(new THREE.Mesh(ringGeometry, hoverMaterial));
+  const pip = noPick(new THREE.Mesh(pipGeometry, reticleMaterial));
+  reticle.add(pip);
   reticle.renderOrder = hover.renderOrder = 4; reticle.visible = hover.visible = false;
   group.add(reticle, hover);
   let elevation = null, selected = -1, hovered = -1, overlayTime = 0;
@@ -47,6 +50,12 @@ export function createOverlays(baseMesh, radius) {
       reticle.scale.setScalar(0.022 * breath);
       reticleMaterial.opacity = 0.90 + 0.08 * Math.sin(overlayTime * 3.5);
     }
+    if (hover.visible && motion) {
+      hoverMaterial.opacity = 0.55 + 0.18 * Math.sin(overlayTime * 5.0);
+    }
+    if (marks && motion) {
+      marks.material.opacity = 0.82 + 0.14 * Math.sin(overlayTime * 3.5);
+    }
     for (const e of pool) {
       if (!e.mesh.visible) continue;
       e.age += dt; const t = e.age / LIFE;
@@ -76,14 +85,14 @@ export function createOverlays(baseMesh, radius) {
     const P = baseMesh.positions, n = Math.min(cells.length, 6000), pos = new Float32Array(3 * n);
     for (let k = 0; k < n; k++) { const c = cells[k], r = radius(elevation[c]) + .003; for (let j = 0; j < 3; j++) pos[3 * k + j] = P[3 * c + j] * r; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    marks = noPick(new THREE.Points(g, new THREE.PointsMaterial({ color, size: 4, sizeAttenuation: false, transparent: true, opacity: .9, depthWrite: false })));
+    marks = noPick(new THREE.Points(g, new THREE.PointsMaterial({ color, size: 5, sizeAttenuation: false, transparent: true, opacity: .88, depthWrite: false, blending: THREE.AdditiveBlending })));
     marks.renderOrder = 4; group.add(marks);
     return n;
   }
   function clearHighlights() { if (marks) { group.remove(marks); marks.geometry.dispose(); marks.material.dispose(); marks = null; } }
 
   function dispose() {
-    clearTransect(); clearHighlights(); ringGeometry.dispose(); reticleMaterial.dispose(); hoverMaterial.dispose();
+    clearTransect(); clearHighlights(); ringGeometry.dispose(); pipGeometry.dispose(); reticleMaterial.dispose(); hoverMaterial.dispose();
     for (const e of pool) e.mesh.material.dispose();
   }
   return { group, setWorld, select, setHover, pulse, tick, showTransect, clearTransect, highlight, clearHighlights, dispose,

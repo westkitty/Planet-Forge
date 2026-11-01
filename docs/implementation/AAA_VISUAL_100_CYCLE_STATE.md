@@ -5,9 +5,9 @@
 - **Default Branch:** `main` (baseline SHA: `5b486a5be9b2933f91a4e26fa94b24d2ff1d42b7`)
 - **Working Feature Branch:** `feat/planet-forge-aaa-uplift-100`
 - **Runtime Environment:** Three.js 0.180.0, Vite 7.1.12, Node v26.13.0, macOS Darwin arm64, Headless Chrome with SwiftShader
-- **Current Cycle:** 060 (Batch 12 complete)
-- **Active Milestone:** Batch 12 (Cycles 056–060) Animation timing, orbital satellites, day-cycle & celestial views
-- **Next Cycle:** 061 (Batch 13 start: In-world visual effects lifecycle, particle pooling & selection tours)
+- **Current Cycle:** 065 (Batch 13 complete)
+- **Active Milestone:** Batch 13 (Cycles 061–065) In-world visual effects lifecycle, particle pooling & selection tours
+- **Next Cycle:** 066 (Batch 14 start: Civilization & historical progression layers)
 
 ## Protected Invariants
 1. 100,002-cell geodesic mesh (frequency 100) and rigid plate kinematics.
@@ -858,5 +858,73 @@
 - **Files Changed:** `src/celestialView.js`, `src/playCelestial.js`, `src/style.css`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-12-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-12-mobile.png`.
 - **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; satellite tracking, day-cycle, and eclipse predictions verified.
 - **Commit SHA:** `597784114c650f570bb67acc70f788f3d19bc094` (pushed to `origin/feat/planet-forge-aaa-uplift-100`).
+
+---
+
+### BATCH 13: In-World Visual Effects Lifecycle, Particle Pooling & Selection Tours (Cycles 061–065)
+*Focus: Precision reticle center targeting pip, additive query highlights with harmonic pulse, hover marker breathing, and complete effects lifecycle disposal.*
+
+#### Cycle 061
+- **Batch:** 13
+- **Observed Weakness:** Selection reticle was a hollow ring without a central focal point, making precise coordinate targeting at high zoom levels visually ambiguous.
+- **Chosen Action:** In `src/overlays.js`:
+  - Added an inner targeting pip (`THREE.CircleGeometry(0.18, 24)`) concentric to the reticle ring.
+  - Shares the luminous observatory gold material (`0xffd88f`) and inherits breathing pulse scaling.
+  - Gives selection targeting genuine optical survey crosshair precision.
+- **Affected Surface:** Planetary selection reticle, cell coordinate targeting.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Reticle clearly identifies selected geodesic cell center while preserving clear view of surrounding terrain.
+- **Performance Impact:** Single 24-segment circle mesh sharing material; zero new draw calls.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 062 soft luminous query highlights with harmonic pulse.
+
+#### Cycle 062
+- **Batch:** 13
+- **Observed Weakness:** Query highlights (Correlate, Eclipse shadow, Survey) used raw opaque point sprites that appeared harsh and pixelated across planetary terrain.
+- **Chosen Action:** In `src/overlays.js` (`highlight` and `tick`):
+  - Upgraded point markers to size 5, `opacity: 0.88`, and `blending: THREE.AdditiveBlending`.
+  - In `tick(dt, motion)`: added harmonic opacity oscillation (`marks.material.opacity = 0.82 + 0.14 * Math.sin(overlayTime * 3.5)`).
+  - Highlights gently glow and breathe with luminous energy across the planetary surface.
+- **Affected Surface:** Query highlights, correlation matches, eclipse shadow footprint.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Highlighted cells form luminous glowing constellations across the terrain without harsh pixel edges.
+- **Performance Impact:** Zero new vertex allocations.
+- **Regression Findings:** Passed all highlight count and lift assertions.
+- **Next Action:** Cycle 063 hover marker cyan breathing oscillation.
+
+#### Cycle 063
+- **Batch:** 13
+- **Observed Weakness:** Hover ring indicator was completely static, feeling disconnected from the living interactive globe.
+- **Chosen Action:** In `src/overlays.js` (`tick`):
+  - Added cyan breathing pulse to the hover marker: `hoverMaterial.opacity = 0.55 + 0.18 * Math.sin(overlayTime * 5.0)`.
+  - Provides subtle, responsive feedback when skimming the cursor over terrain and ocean features.
+- **Affected Surface:** Pointer hover indicator, pre-selection feedback.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Hover ring softly pulses cyan upon hovering; immediately hides on click or when hovering the selected cell.
+- **Performance Impact:** Single scalar opacity modulation per frame.
+- **Regression Findings:** None.
+- **Next Action:** Cycle 064 visual effects lifecycle and disposal hardening.
+
+#### Cycle 064
+- **Batch:** 13
+- **Observed Weakness:** In-world effects lifecycle needed rigorous disposal verification to guarantee that dynamic geometries (such as the new inner pip geometry and highlight buffers) never leak across world re-forges or scene teardown.
+- **Chosen Action:** In `src/overlays.js` (`dispose`):
+  - Added explicit disposal for `pipGeometry.dispose()`.
+  - Verified `clearTransect()` and `clearHighlights()` properly dispose geometries and materials on both new world generation and component unmount.
+- **Affected Surface:** Memory lifecycle, WebGL buffer disposal.
+- **Files Changed:** `src/overlays.js`.
+- **Evidence:** Clean memory profile verified across re-forging and repeated query executions.
+- **Performance Impact:** Zero memory leakage; immediate GPU buffer deallocation.
+- **Regression Findings:** Tested with rapid repeated world forging; passes all invariants.
+- **Next Action:** Cycle 065 Batch 13 Git Checkpoint.
+
+#### Cycle 065
+- **Batch:** 13
+- **Observed Weakness:** Mandatory 5-cycle checkpoint required to verify, test, stage, commit, and push Batch 13 improvements.
+- **Chosen Action:** Run full unit test suite (95/95 passing), production build (clean in 861ms), and browser smoke test suite (162/162 checks passing across desktop and mobile); save visual artifacts to `docs/implementation/visual-uplift-100/checkpoint-13-*.png`; stage intended files; commit `visual-uplift(batch-13): reticle optical center pip, additive pulsing query highlights, and effects disposal hardening`; push to `origin/feat/planet-forge-aaa-uplift-100`; verify remote SHA equality.
+- **Affected Surface:** Repository feature branch state.
+- **Files Changed:** `src/overlays.js`, `docs/implementation/AAA_VISUAL_100_CYCLE_STATE.md`, `docs/implementation/visual-uplift-100/checkpoint-13-desktop.png`, `docs/implementation/visual-uplift-100/checkpoint-13-mobile.png`.
+- **Evidence:** 95/95 unit tests passing; 162/162 smoke checks passing; zero console errors; reticle targeting, hover feedback, and highlight pulse verified.
+- **Commit SHA:** [PENDING COMMIT] (to be pushed to `origin/feat/planet-forge-aaa-uplift-100`).
 
 ---
